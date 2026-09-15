@@ -5,7 +5,7 @@
 //  - 인터넷이 끊기면 마지막으로 받아둔 화면을 대신 보여줍니다.
 //  - 파이어베이스·구글 폰트 같은 바깥 주소는 건드리지 않습니다. (실시간 동기화를 막으면 안 되니까요)
 
-var CACHE = 'mari-schedule-v1';
+var CACHE = 'mari-schedule-v2';
 
 self.addEventListener('install', function(){
   self.skipWaiting();
