@@ -419,6 +419,63 @@
     white-space:pre-wrap; line-height:1.75; font-size:.95rem;
   }
 
+  /* ---- 답글 ---- */
+  .comment-wrap{ margin-top:18px; }
+  .comment-head{
+    font-size:.95rem; margin:0 0 10px; display:flex; align-items:center; gap:7px;
+  }
+  .comment-count{
+    font-family:'Noto Sans KR',sans-serif; font-size:.8rem; font-weight:700;
+    color:var(--accent); background:var(--accent-soft);
+    border-radius:999px; padding:1px 9px;
+  }
+  .comment-empty{
+    font-size:.85rem; color:var(--ink-faint); margin:0 0 12px;
+    background:var(--surface); border:1px dashed var(--line);
+    border-radius:12px; padding:16px; text-align:center;
+  }
+  .comment{
+    position:relative; background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:12px 14px; margin-bottom:8px;
+  }
+  .comment-top{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .comment-avatar{
+    width:22px; height:22px; border-radius:50%; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    font-size:.72rem; font-weight:700; font-family:'Noto Serif KR',serif;
+    background:var(--accent-soft); color:var(--accent);
+  }
+  .comment-avatar.me{ background:var(--accent); color:var(--accent-ink); }
+  .comment-who{ font-weight:700; font-size:.85rem; }
+  .comment-role{
+    font-size:.7rem; color:var(--ink-faint);
+    border:1px solid var(--line); border-radius:999px; padding:1px 7px;
+  }
+  .comment-when{ font-size:.72rem; color:var(--ink-faint); margin-left:auto; }
+  .comment-body{
+    margin-top:8px; white-space:pre-wrap; line-height:1.65; font-size:.88rem;
+    padding-right:36px;
+  }
+  .comment-del{
+    position:absolute; right:10px; bottom:10px;
+    border:none; background:none; font-family:inherit;
+    font-size:.72rem; color:var(--danger); padding:4px 6px; cursor:pointer;
+  }
+  .comment-form{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:14px; margin-top:12px;
+  }
+  .comment-as{ display:flex; align-items:center; gap:9px; margin-bottom:10px; }
+  .comment-as-name{ font-weight:700; font-size:.85rem; }
+  .comment-as-role{ font-size:.72rem; color:var(--ink-faint); }
+  .comment-form textarea{
+    width:100%; border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-family:inherit; font-size:.88rem; line-height:1.6;
+    background:var(--bg); color:var(--ink); resize:vertical;
+  }
+  .comment-form textarea:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .comment-form .btn{ margin-top:10px; }
+
   /* ---------- 회원(내담자) 관리 ---------- */
   .clients-bar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
   .clients-bar input{
@@ -1187,6 +1244,8 @@
     clientBusy: false, clientError: '',
     boards: [],               // [{id, orgId, name, writeRestricted, createdAt}]
     posts: [],                // [{id, orgId, boardId, title, body, authorId, authorName, createdAt}]
+    comments: [],             // [{id, orgId, postId, body, authorId, authorName, authorRole, createdAt}]
+    commentBusy: false, commentError: '',
     boardId: null,            // 열어둔 게시판 (null이면 게시판 목록)
     postId: null,             // 열어둔 글
     boardEdit: null,          // 게시판 만들기/수정 중
@@ -1270,6 +1329,7 @@
     state.clients = [];
     state.boards = [];
     state.posts = [];
+    state.comments = [];
     state.orgAdmin = null;
   }
   function clearAccountSub(){
@@ -1428,21 +1488,31 @@
     }, function(){ /* leave last-known members in place; the store retries internally */ });
     orgUnsubs.push(u2);
 
-    // 일정은 지워지지 않고 계속 쌓입니다. 이 숫자는 "한 번에 화면으로
-    // 불러오는 최대 건수"일 뿐이에요. 하루 20명 기준 약 4년치입니다.
-    // (예전 플랫폼에는 1000건 상한이 있었지만 Firebase 에는 없습니다.)
-    // 처음 한 번만 전부 받아오고, 그다음부터는 바뀐 것만 주고받아요.
-    var u3 = db.collection('schedule').where('orgId','==',orgId).limit(20000).onSnapshot(function(qs){
-      state.entriesError = '';
-      state.entries = rows(qs, 'date');
-      render();
-    }, function(err){
-      // A terminal subscription error would otherwise look like "nothing is
-      // ever saved" — say so instead of showing a permanently empty calendar.
-      state.entriesError = (err && err.code) || 'unavailable';
-      render();
-    });
-    orgUnsubs.push(u3);
+    // 일정은 지워지지 않고 계속 쌓입니다. 건수 제한을 걸지 않아요.
+    // (아주 큰 limit 값은 서버가 invalid-argument 로 거절합니다. 그래서
+    //  아예 걸지 않고, 혹시 실패하면 1000건으로 한 번 더 시도해요.)
+    // 처음 한 번만 전부 받아오고, 그다음부터는 바뀐 것만 주고받습니다.
+    var subscribeSchedule = function(limitN){
+      var q = db.collection('schedule').where('orgId','==',orgId);
+      if(limitN) q = q.limit(limitN);
+      return q.onSnapshot(function(qs){
+        state.entriesError = '';
+        state.entries = rows(qs, 'date');
+        render();
+      }, function(err){
+        var code = (err && err.code) || 'unavailable';
+        // 한 번은 건수를 줄여 다시 시도합니다 — 달력이 빈 채로 남지 않게.
+        if(!limitN){
+          orgUnsubs.push(subscribeSchedule(1000));
+          return;
+        }
+        // 여기까지 오면 진짜 못 읽는 상태예요. "저장이 안 된 것"처럼
+        // 보이지 않도록 화면에 사유를 띄웁니다.
+        state.entriesError = code;
+        render();
+      });
+    };
+    orgUnsubs.push(subscribeSchedule(null));
 
     var u4 = db.collection('clients').where('orgId','==',orgId).limit(1000).onSnapshot(function(qs){
       state.clients = rows(qs, 'name');
@@ -1461,6 +1531,12 @@
       render();
     }, function(){ /* 글 목록만 비어 보임 */ });
     orgUnsubs.push(u6);
+
+    var u7 = db.collection('comments').where('orgId','==',orgId).limit(1000).onSnapshot(function(qs){
+      state.comments = rows(qs, 'createdAt');
+      render();
+    }, function(){ /* 답글만 비어 보임 */ });
+    orgUnsubs.push(u7);
   }
 
   /* ---------------- derived helpers ---------------- */
@@ -2962,6 +3038,61 @@
       html += '</div>';
     }
     html += '</div>';
+    html += tplComments(p);
+    return html;
+  }
+
+  /* ---------------- 답글 ---------------- */
+  function commentsOfPost(postId){
+    return state.comments.filter(function(c){ return c.postId === postId; })
+      .sort(function(a,b){ return String(a.createdAt||'').localeCompare(String(b.createdAt||'')); });
+  }
+  // 자기 답글은 언제든, 남의 답글은 관리자·일정 관리 권한자만 지울 수 있어요.
+  function canDeleteComment(c){
+    return canManageSchedule() || !!(state.account && c.authorId === state.account.id);
+  }
+  function myRoleText(){
+    var a = state.account || {};
+    if(a.role === 'admin') return '관리자';
+    return a.job ? ('구성원 · ' + a.job) : '구성원';
+  }
+
+  function tplComments(p){
+    var list = commentsOfPost(p.id);
+    var me = state.account || {};
+    var html = '<div class="comment-wrap">';
+    html += '<h3 class="comment-head">답글 <span class="comment-count">'+list.length+'</span></h3>';
+
+    if(!list.length){
+      html += '<p class="comment-empty">아직 답글이 없어요. 첫 답글을 남겨보세요.</p>';
+    }
+    list.forEach(function(c){
+      html += '<div class="comment">';
+      html += '<div class="comment-top">';
+      html += '<span class="comment-avatar">'+esc(String(c.authorName||'?').slice(0,1))+'</span>';
+      html += '<span class="comment-who">'+esc(c.authorName||'')+'</span>';
+      if(c.authorRole) html += '<span class="comment-role">'+esc(c.authorRole)+'</span>';
+      html += '<span class="comment-when">'+esc(fmtDateTime(c.createdAt))+'</span>';
+      html += '</div>';
+      html += '<div class="comment-body">'+esc(c.body||'')+'</div>';
+      if(canDeleteComment(c)){
+        html += '<button class="comment-del" data-cdel="'+esc(c.id)+'">삭제</button>';
+      }
+      html += '</div>';
+    });
+
+    // 쓰는 사람은 로그인한 본인으로 고정 — 고를 수 없습니다.
+    html += '<div class="comment-form">';
+    html += '<div class="comment-as">';
+    html += '<span class="comment-avatar me">'+esc(String(me.name||'?').slice(0,1))+'</span>';
+    html += '<div><div class="comment-as-name">'+esc(me.name||'')+'</div>';
+    html += '<div class="comment-as-role">'+esc(myRoleText())+'</div></div>';
+    html += '</div>';
+    html += '<textarea id="cm-body" rows="3" placeholder="답글을 입력해주세요."></textarea>';
+    if(state.commentError) html += '<div class="err-msg">'+esc(state.commentError)+'</div>';
+    html += '<button class="btn btn-primary" id="cm-submit"'+(state.commentBusy?' disabled':'')+'>'
+         + (state.commentBusy?'등록 중…':'답글 등록')+'</button>';
+    html += '</div></div>';
     return html;
   }
 
@@ -3997,15 +4128,74 @@
       askConfirm({
         title:'글 삭제', message:'이 글을 삭제할까요?', okLabel:'삭제',
         onOk: function(){
-          state.db.collection('posts').doc(p.id).delete().then(function(){
+          // 글을 지우면 딸린 답글도 같이 지웁니다 (남으면 주인 없는 답글이 돼요)
+          var kids = commentsOfPost(p.id);
+          var chain = Promise.resolve();
+          kids.forEach(function(c){
+            chain = chain.then(function(){ return state.db.collection('comments').doc(c.id).delete(); });
+          });
+          chain.then(function(){
+            return state.db.collection('posts').doc(p.id).delete();
+          }).then(function(){
             state.postId = null; render();
           }).catch(function(){});
         }
       });
     });
 
+    bindComments();
     bindPostEditModal();
     bindBoardEditModal();
+  }
+
+  function bindComments(){
+    var submit = document.getElementById('cm-submit');
+    if(submit) submit.addEventListener('click', function(){
+      var ta = document.getElementById('cm-body');
+      var body = ta ? ta.value.trim() : '';
+      if(!body){
+        state.commentError = '답글 내용을 입력해주세요.';
+        render();
+        var again = document.getElementById('cm-body');
+        if(again) again.focus();
+        return;
+      }
+      var p = postById(state.postId);
+      if(!p || state.commentBusy) return;
+
+      state.commentError = ''; state.commentBusy = true; render();
+      state.db.collection('comments').doc().set({
+        orgId: myOrgId(),
+        postId: p.id,
+        body: body,
+        authorId: state.account.id,
+        authorName: state.account.name || '',
+        authorRole: myRoleText(),
+        createdAt: new Date().toISOString()
+      }).then(function(){
+        state.commentBusy = false;
+        // 비운 다음 그려야 입력칸이 되살아나지 않아요
+        var el = document.getElementById('cm-body');
+        if(el) el.value = '';
+        render();
+      }).catch(function(){
+        state.commentBusy = false;
+        state.commentError = '답글을 등록하지 못했어요. 다시 시도해주세요.';
+        render();
+      });
+    });
+
+    document.querySelectorAll('[data-cdel]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-cdel');
+        askConfirm({
+          title:'답글 삭제', message:'이 답글을 삭제할까요?', okLabel:'삭제',
+          onOk: function(){
+            state.db.collection('comments').doc(id).delete().catch(function(){});
+          }
+        });
+      });
+    });
   }
 
   function bindPostEditModal(){
@@ -4095,6 +4285,10 @@
         onOk: function(){
           var chain = Promise.resolve();
           posts.forEach(function(p){
+            // 글에 딸린 답글을 먼저 지우고 글을 지웁니다
+            commentsOfPost(p.id).forEach(function(c){
+              chain = chain.then(function(){ return state.db.collection('comments').doc(c.id).delete(); });
+            });
             chain = chain.then(function(){ return state.db.collection('posts').doc(p.id).delete(); });
           });
           chain.then(function(){
