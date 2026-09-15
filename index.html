@@ -1,0 +1,3584 @@
+<title>상담 일정 공유판</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg:#F6F3EC;
+    --surface:#FFFFFF;
+    --surface-2:#FBF9F4;
+    --ink:#2E2B26;
+    --ink-soft:#726C5F;
+    --ink-faint:#A39C8C;
+    --accent:#4F7A5B;
+    --accent-ink:#FFFFFF;
+    --accent-soft:#DCEAE0;
+    --line:#E4DFD3;
+    --line-strong:#D2CBBA;
+    --danger:#B23B23;
+    --danger-soft:#F5DFD8;
+    --sat-ink:#3B6E9A;
+    --shadow: 0 12px 28px -14px rgba(46,43,38,.28);
+
+    --tag-0:#B5573C; --tag-0-soft:#F6E3DC;
+    --tag-1:#A9822C; --tag-1-soft:#F3E9CE;
+    --tag-2:#2C7A7B; --tag-2-soft:#DCEEEE;
+    --tag-3:#3B6E9A; --tag-3-soft:#DCE8F2;
+    --tag-4:#7B4B94; --tag-4-soft:#EBDEF0;
+    --tag-5:#B24D6B; --tag-5-soft:#F5DEE5;
+    --tag-6:#6B7A3B; --tag-6-soft:#E7ECD8;
+    --tag-7:#55606E; --tag-7-soft:#E3E6EA;
+    --tag-8:#C08A2E; --tag-8-soft:#F5E6CB;
+    --tag-9:#4B5FA8; --tag-9-soft:#DEE3F5;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1C1B17;
+      --surface:#242219;
+      --surface-2:#2A281F;
+      --ink:#EFEAE0;
+      --ink-soft:#B3AB99;
+      --ink-faint:#7D7666;
+      --accent:#7BAE8B;
+      --accent-ink:#15251A;
+      --accent-soft:#28352A;
+      --line:#37342A;
+      --line-strong:#454133;
+      --danger:#E08469;
+      --danger-soft:#3A241D;
+      --sat-ink:#7FAAD4;
+      --shadow: 0 12px 28px -14px rgba(0,0,0,.5);
+
+      --tag-0:#E08A6E; --tag-0-soft:#3A2620;
+      --tag-1:#D9B25C; --tag-1-soft:#372C16;
+      --tag-2:#4FA3A4; --tag-2-soft:#163333;
+      --tag-3:#6B9FC9; --tag-3-soft:#1C2E3D;
+      --tag-4:#B586CB; --tag-4-soft:#2E2438;
+      --tag-5:#D9829D; --tag-5-soft:#3A222A;
+      --tag-6:#A3B36B; --tag-6-soft:#2A2E1A;
+      --tag-7:#93A0AF; --tag-7-soft:#262A30;
+      --tag-8:#E0B863; --tag-8-soft:#3A2E18;
+      --tag-9:#8B9AD6; --tag-9-soft:#262C3E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1C1B17;
+    --surface:#242219;
+    --surface-2:#2A281F;
+    --ink:#EFEAE0;
+    --ink-soft:#B3AB99;
+    --ink-faint:#7D7666;
+    --accent:#7BAE8B;
+    --accent-ink:#15251A;
+    --accent-soft:#28352A;
+    --line:#37342A;
+    --line-strong:#454133;
+    --danger:#E08469;
+    --danger-soft:#3A241D;
+    --sat-ink:#7FAAD4;
+    --shadow: 0 12px 28px -14px rgba(0,0,0,.5);
+
+    --tag-0:#E08A6E; --tag-0-soft:#3A2620;
+    --tag-1:#D9B25C; --tag-1-soft:#372C16;
+    --tag-2:#4FA3A4; --tag-2-soft:#163333;
+    --tag-3:#6B9FC9; --tag-3-soft:#1C2E3D;
+    --tag-4:#B586CB; --tag-4-soft:#2E2438;
+    --tag-5:#D9829D; --tag-5-soft:#3A222A;
+    --tag-6:#A3B36B; --tag-6-soft:#2A2E1A;
+    --tag-7:#93A0AF; --tag-7-soft:#262A30;
+    --tag-8:#E0B863; --tag-8-soft:#3A2E18;
+    --tag-9:#8B9AD6; --tag-9-soft:#262C3E;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-variant-numeric: tabular-nums;
+    padding-inline: 20px;
+    padding-block: 20px 56px;
+  }
+  h1,h2,h3{ font-family:'Noto Serif KR', serif; font-weight:700; margin:0; text-wrap:balance; }
+  .wrap{ max-width: 980px; margin: 0 auto; }
+  button{ font-family:inherit; cursor:pointer; }
+  input, select{ font-family:inherit; }
+
+  /* ---------- shell / loading ---------- */
+  .center-screen{
+    min-height: 70vh; display:flex; align-items:center; justify-content:center;
+  }
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    box-shadow: var(--shadow); padding: 32px 28px;
+  }
+  .brand-eyebrow{
+    font-size:.78rem; letter-spacing:.08em; color:var(--ink-soft); font-weight:600;
+  }
+  .muted{ color:var(--ink-soft); }
+  .faint{ color:var(--ink-faint); }
+  .small{ font-size:.78rem; }
+
+  /* ---------- setup / auth ---------- */
+  .auth-shell{ max-width: 420px; margin: 6vh auto 0; }
+  .auth-shell .card{ padding: 30px 26px; }
+  .field{ margin-top:16px; }
+  .field label{ display:block; font-size:.85rem; font-weight:600; color:var(--ink-soft); margin-bottom:6px; }
+  .field .hint{ font-size:.76rem; color:var(--ink-faint); margin-top:5px; line-height:1.5; }
+  .field input, .field select{
+    width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--line-strong);
+    background:var(--surface-2); color:var(--ink); font-size:1rem;
+  }
+  .field input:disabled{ opacity:.6; }
+  .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    padding: 11px 18px; border-radius:10px; border:1px solid transparent;
+    font-weight:600; font-size:.95rem; transition: filter .12s ease;
+  }
+  .btn:hover{ filter:brightness(0.95); }
+  .btn:disabled{ opacity:.6; cursor:default; }
+  .btn-primary{ background:var(--accent); color:var(--accent-ink); width:100%; margin-top:20px; }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); border-color:var(--line-strong); }
+  .btn-line{ background:var(--surface-2); color:var(--ink); border-color:var(--line-strong); }
+  .btn-danger{ background:var(--danger-soft); color:var(--danger); }
+  .btn-sm{ padding:7px 12px; font-size:.83rem; border-radius:8px; }
+  .err-msg{ margin-top:14px; color:var(--danger); font-size:.88rem; font-weight:600; }
+  .link-btn{
+    display:block; width:100%; margin-top:14px; padding:6px 0; border:none; background:none;
+    font-family:inherit; font-size:.85rem; font-weight:600; color:var(--ink-soft);
+    text-decoration:underline; text-underline-offset:3px;
+  }
+  .link-btn:hover:not(:disabled){ color:var(--ink); }
+  .link-btn:disabled{ opacity:.6; cursor:default; }
+  .note-msg{ margin-top:14px; color:var(--ink-soft); font-size:.85rem; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; line-height:1.5; }
+
+  .authtabs{ display:flex; gap:6px; margin-top:18px; background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:4px; }
+  .authtab{ flex:1; padding:9px 0; border-radius:9px; border:none; background:transparent; color:var(--ink-soft); font-weight:700; font-size:.88rem; }
+  .authtab.active{ background:var(--surface); color:var(--ink); box-shadow: var(--shadow); }
+
+  .form-check{
+    display:flex; align-items:flex-start; gap:9px; margin-top:18px; padding:12px 13px;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+  }
+  .form-check input[type=checkbox]{ margin-top:3px; width:16px; height:16px; accent-color:var(--accent); flex:none; }
+  .form-check label{ font-size:.87rem; color:var(--ink); font-weight:600; line-height:1.45; }
+
+  .dot{ width:11px; height:11px; border-radius:50%; flex:none; background:var(--tag-0); }
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:18px;
+  }
+  .whoami{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .avatar{
+    width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:700; color:var(--accent-ink); background:var(--accent); font-family:'Noto Serif KR',serif;
+    flex:none;
+  }
+  .role-badge{
+    font-size:.72rem; font-weight:700; letter-spacing:.04em; color:var(--ink-soft);
+    background:var(--surface-2); border:1px solid var(--line); padding:2px 9px; border-radius:999px;
+    white-space:nowrap;
+  }
+
+  .hamburger-btn{
+    width:42px; height:42px; border-radius:11px; border:1px solid var(--line-strong);
+    background:var(--surface); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; flex:none;
+  }
+  .hamburger-btn span{ display:block; width:18px; height:2px; background:var(--ink); border-radius:2px; }
+
+  /* ---------- drawer menu ---------- */
+  .drawer-overlay{
+    position:fixed; inset:0; background:rgba(30,27,20,.42); display:flex;
+    justify-content:flex-end; z-index:60;
+  }
+  .drawer{
+    width:280px; max-width:82vw; height:100%; background:var(--surface);
+    box-shadow: var(--shadow); padding: 20px 16px; display:flex; flex-direction:column; gap:4px;
+    overflow-y:auto;
+  }
+  .drawer-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding:0 4px; }
+  .drawer-head h3{ font-size:1.05rem; }
+  .drawer-item{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    padding:12px 12px; border-radius:10px; border:none; background:transparent;
+    color:var(--ink); font-weight:600; font-size:.95rem;
+  }
+  .drawer-item:hover{ background:var(--surface-2); }
+  .drawer-item.active{ background:var(--accent-soft); color:var(--accent); }
+  .drawer-item.danger{ color:var(--danger); }
+  .drawer-sep{ height:1px; background:var(--line); margin:8px 4px; }
+
+  /* ---------- month nav ---------- */
+  .monthbar{
+    display:flex; align-items:center; justify-content:space-between; margin: 6px 0 14px;
+  }
+  .monthbar h2{ font-size:1.45rem; }
+  .nav-btn{
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--line-strong);
+    background:var(--surface); color:var(--ink); font-size:1.1rem; display:flex; align-items:center; justify-content:center;
+  }
+  .nav-group{ display:flex; align-items:center; gap:8px; }
+
+  /* ---------- filter chips (admin) ---------- */
+  .chiprow{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px;
+    border:1px solid var(--line-strong); background:var(--surface); font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  }
+  .chip.active{ background:var(--tag-soft, var(--accent-soft)); color:var(--ink); border-color:transparent; }
+  .chip .dot{ width:8px; height:8px; }
+
+  /* ---------- colour-mode toggle ---------- */
+  .modebar{ display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .modebar-label{ font-size:.78rem; font-weight:700; color:var(--ink-soft); }
+  .segmented{
+    display:inline-flex; gap:2px; padding:3px; border-radius:10px;
+    background:var(--surface-2); border:1px solid var(--line);
+  }
+  .seg{
+    border:none; background:transparent; color:var(--ink-soft);
+    font-weight:700; font-size:.8rem; padding:5px 14px; border-radius:8px;
+  }
+  .seg.active{ background:var(--surface); color:var(--ink); box-shadow:var(--shadow); }
+
+  /* ---------- 직무 colour swatches ---------- */
+  .job-swatch{
+    width:15px; height:15px; border-radius:5px; flex:none; padding:0;
+    border:1px solid rgba(0,0,0,.14); display:inline-block;
+  }
+  button.job-swatch:hover{ filter:brightness(.92); }
+  .swatch-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:18px; }
+  .swatch{ aspect-ratio:1; max-width:100%; border-radius:11px; border:2px solid transparent; padding:0; }
+  .swatch.active{ border-color:var(--ink); }
+  .swatch:hover{ filter:brightness(.94); }
+
+  /* ---------- calendar ---------- */
+  .cal-grid{
+    display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:6px;
+  }
+  .cal-dow{ text-align:center; font-size:.75rem; font-weight:700; color:var(--ink-faint); padding-bottom:4px; }
+  .cal-cell{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    min-height:86px; padding:7px 6px; display:flex; flex-direction:column; gap:4px;
+    text-align:left; width:100%; min-width:0;
+  }
+  .cal-cell.out{ background:var(--surface-2); opacity:.55; }
+  .cal-cell.today{ border-color:var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .cal-daynum{ font-size:.8rem; font-weight:700; color:var(--ink-soft); }
+  .cal-cell.today .cal-daynum{ color:var(--accent); }
+  .cal-entries{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+  /* The column width is fixed; a chip wraps downward instead of widening it,
+     so the 내담자 이름과 회차 stay readable even in a narrow phone column. */
+  /* One line per entry, always: the column width is fixed, so anything that
+     doesn't fit is trimmed rather than wrapped. Details live in the day popup. */
+  .cal-chip{
+    display:flex; align-items:center; gap:3px; font-size:.64rem; line-height:1.5;
+    padding:1px 4px; border-radius:5px; min-width:0;
+    background: var(--tag-soft); color: var(--ink); border-left:3px solid var(--tag);
+    text-align:left; white-space:nowrap; overflow:hidden;
+  }
+  .cal-chip-name{ font-weight:700; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .cal-chip-time{ font-weight:600; opacity:.7; flex:none; display:none; }
+  @media (min-width: 620px){ .cal-chip-time{ display:inline; } }
+  /* 회차: a drawn circle rather than ①②③, so any number renders anywhere. */
+  .cal-n{
+    flex:none; margin-left:auto; min-width:1.2em; height:1.2em; line-height:1.2em;
+    text-align:center; border-radius:50%; background:var(--tag); color:var(--surface);
+    font-size:.8em; font-weight:800; padding:0 1px;
+  }
+  /* 바쁜 날 요약 */
+  .cal-total{ font-size:.58rem; font-weight:800; color:var(--ink-soft); line-height:1.4; }
+  .cal-sum{
+    display:flex; align-items:center; gap:3px; font-size:.6rem; font-weight:700;
+    line-height:1.45; white-space:nowrap; overflow:hidden; min-width:0;
+  }
+  .cal-sum-name{ overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .cal-sum-n{ margin-left:auto; font-weight:800; flex:none; }
+  .cal-more{ font-size:.66rem; color:var(--ink-faint); font-weight:600; }
+  .cal-dow.sun, .cal-cell.sun .cal-daynum{ color:var(--danger); }
+  .cal-dow.sat, .cal-cell.sat .cal-daynum{ color:var(--sat-ink); }
+  .cal-cell.today.sun .cal-daynum, .cal-cell.today.sat .cal-daynum{ color:var(--accent); }
+  .cal-holiday{
+    font-size:.6rem; font-weight:700; color:var(--danger); line-height:1.25;
+    overflow-wrap:anywhere; margin-top:-1px;
+  }
+  .holiday-tag{
+    margin-left:9px; font-family:'Noto Sans KR',sans-serif; font-size:.74rem; font-weight:700;
+    color:var(--danger); background:var(--danger-soft); padding:3px 10px; border-radius:999px;
+    vertical-align:3px;
+  }
+
+  @media (max-width: 620px){
+    .cal-grid{ gap:4px; }
+    .cal-cell{ min-height:64px; padding:4px 2px; border-radius:9px; }
+    .cal-dow{ font-size:.66rem; }
+    .cal-daynum{ font-size:.72rem; }
+    .cal-chip{ font-size:.5rem; padding:1px 2px; border-left-width:2px; gap:1px; }
+    .cal-sum{ font-size:.55rem; }
+    .cal-total{ font-size:.54rem; }
+    .cal-entries{ gap:2px; }
+  }
+
+  /* ---------- summary strip ---------- */
+  .summary-strip{
+    display:flex; gap:10px; overflow-x:auto; margin: 14px 0 4px; padding-bottom:2px;
+  }
+  .summary-tile{
+    flex:none; min-width:132px; background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:11px 13px;
+  }
+  .summary-tile .num{ font-family:'Noto Serif KR',serif; font-size:1.5rem; font-weight:700; }
+  .summary-tile .lbl{ font-size:.74rem; color:var(--ink-soft); font-weight:600; margin-top:2px; }
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(30,27,20,.42); display:flex; align-items:flex-end;
+    justify-content:center; z-index:50; padding: 0;
+  }
+  @media (min-width: 640px){ .overlay{ align-items:center; padding:20px; } }
+  .overlay-top{ z-index:70; }
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:80;
+    max-width:min(92vw, 420px); padding:12px 18px; border-radius:12px;
+    background:var(--ink); color:var(--bg); font-size:.88rem; font-weight:600;
+    line-height:1.5; text-align:center; box-shadow:var(--shadow);
+  }
+  /* ---------- 게시판 ---------- */
+  .back-link{
+    border:none; background:none; padding:0 0 10px; color:var(--ink-soft);
+    font-family:inherit; font-size:.86rem; font-weight:700;
+  }
+  .back-link:hover{ color:var(--ink); }
+  .board-list{ display:flex; flex-direction:column; gap:10px; }
+  .board-row{ display:flex; align-items:stretch; gap:8px; }
+  .board-row .board-card{ flex:1; min-width:0; }
+  .board-move{ display:flex; flex-direction:column; gap:4px; justify-content:center; flex:none; }
+  .move-btn{
+    width:34px; height:30px; border-radius:8px; padding:0; line-height:1;
+    border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-soft);
+    font-size:.7rem; font-family:inherit;
+  }
+  .move-btn:hover:not(:disabled){ background:var(--surface-2); color:var(--ink); }
+  .move-btn:disabled{ opacity:.35; cursor:default; }
+  .board-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 17px;
+    display:flex; flex-direction:column; gap:6px; text-align:left; width:100%;
+    font-family:inherit; color:var(--ink);
+  }
+  .board-card:hover{ border-color:var(--line-strong); }
+  .board-card.inert{ cursor:default; background:var(--surface-2); }
+  .board-card-top{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .board-name{ font-family:'Noto Serif KR',serif; font-weight:700; font-size:1.02rem; }
+  .board-meta{ font-size:.8rem; color:var(--ink-soft); }
+  .badge-lock{
+    font-size:.7rem; font-weight:700; color:var(--ink-soft);
+    background:var(--surface-2); border:1px solid var(--line-strong); padding:2px 9px; border-radius:999px;
+  }
+  .post-list{ display:flex; flex-direction:column; }
+  .post-row{
+    border:none; border-bottom:1px solid var(--line); background:none; width:100%; text-align:left;
+    padding:14px 4px; font-family:inherit; color:var(--ink); display:flex; flex-direction:column; gap:4px;
+  }
+  .post-row:last-child{ border-bottom:none; }
+  .post-row:hover{ background:var(--surface-2); }
+  .post-row-title{ font-weight:600; font-size:.96rem; }
+  .post-row.pinned{ background:var(--surface-2); }
+  .pin-badge{
+    display:inline-block; margin-right:7px; font-size:.68rem; font-weight:800; vertical-align:1px;
+    color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:999px;
+    font-family:'Noto Sans KR',sans-serif;
+  }
+  .post-row-meta{ font-size:.77rem; color:var(--ink-faint); }
+  .post-view{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px;
+  }
+  .post-title{ font-size:1.3rem; }
+  .post-byline{ font-size:.8rem; color:var(--ink-faint); margin-top:8px; }
+  .post-body{
+    margin-top:18px; padding-top:18px; border-top:1px solid var(--line);
+    white-space:pre-wrap; line-height:1.75; font-size:.95rem;
+  }
+
+  /* ---------- 회원(내담자) 관리 ---------- */
+  .clients-bar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  .clients-bar input{
+    flex:1; min-width:150px; padding:11px 13px; border-radius:10px;
+    border:1px solid var(--line-strong); background:var(--surface-2); color:var(--ink); font-size:.95rem;
+  }
+  .clients-bar input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .client-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:10px; }
+  .client-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 15px;
+    display:flex; flex-direction:column; gap:8px; text-align:left; width:100%; font-family:inherit; color:var(--ink);
+  }
+  .client-card:hover{ border-color:var(--line-strong); }
+  .client-card-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .client-name{ font-weight:700; font-size:.98rem; }
+  .client-meta{ display:flex; flex-wrap:wrap; gap:3px 14px; font-size:.8rem; color:var(--ink-soft); }
+  .client-info-btn{
+    margin-left:7px; width:19px; height:19px; border-radius:50%; padding:0; line-height:1;
+    border:1px solid var(--accent); background:var(--accent-soft); color:var(--accent);
+    font-size:.7rem; font-weight:800; font-family:'Noto Serif KR',serif; vertical-align:1px;
+  }
+  .memo-box{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:11px 13px;
+    font-size:.87rem; line-height:1.6; white-space:pre-wrap; color:var(--ink);
+  }
+  .field textarea{
+    width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--line-strong);
+    background:var(--surface-2); color:var(--ink); font-size:1rem; font-family:inherit; resize:vertical;
+  }
+  .field textarea:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .cal-chip b{ font-weight:800; }
+  .session-badge{
+    margin-left:7px; font-size:.7rem; font-weight:700; vertical-align:2px;
+    color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:999px;
+  }
+  .confirm-msg{ margin:0; color:var(--ink-soft); line-height:1.65; white-space:pre-line; }
+  .modal{
+    background:var(--surface); width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
+    border-radius: 20px 20px 0 0; box-shadow: var(--shadow); padding: 22px 22px 26px;
+  }
+  @media (min-width:640px){ .modal{ border-radius:20px; } }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .modal-close{ background:none; border:none; font-size:1.3rem; color:var(--ink-faint); line-height:1; padding:4px; }
+  .day-entry{
+    display:flex; align-items:flex-start; gap:10px; padding:11px 4px; border-bottom:1px solid var(--line);
+  }
+  .day-entry:last-child{ border-bottom:none; }
+  .day-entry .dot{ margin-top:6px; }
+  .day-entry .time{ font-weight:700; font-size:.88rem; white-space:nowrap; }
+  .day-entry .title{ font-weight:600; }
+  .day-entry .who{ font-size:.78rem; color:var(--ink-soft); }
+  .day-entry .memo{ font-size:.82rem; color:var(--ink-soft); margin-top:2px; }
+  .day-entry-actions{ margin-left:auto; display:flex; gap:6px; flex:none; }
+  .icon-btn{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:8px; width:30px; height:30px;
+    display:flex; align-items:center; justify-content:center; font-size:.85rem; color:var(--ink-soft); flex:none;
+  }
+  .empty-note{ color:var(--ink-faint); font-size:.9rem; padding: 14px 4px; }
+  .form-row{ display:flex; gap:10px; }
+  .form-row > .field{ flex:1; }
+  /* ---------- 입력칸에 붙는 자동완성 ---------- */
+  .ac-wrap{ position:relative; }
+  .ac-list{
+    position:absolute; left:0; right:0; top:calc(100% + 5px); z-index:6;
+    background:var(--surface); border:1px solid var(--line-strong); border-radius:11px;
+    box-shadow:var(--shadow); max-height:196px; overflow-y:auto; padding:5px;
+  }
+  .ac-item{
+    display:block; width:100%; text-align:left; border:none; background:none;
+    padding:10px 11px; border-radius:8px; font-family:inherit; font-size:.94rem;
+    font-weight:600; color:var(--ink);
+  }
+  .ac-item:hover, .ac-item:focus{ background:var(--accent-soft); color:var(--accent); outline:none; }
+
+  .hm-group{ display:flex; align-items:center; gap:6px; }
+  .hm-group select{ flex:1; min-width:0; text-align:center; }
+  .hm-colon{ font-weight:700; color:var(--ink-soft); flex:none; }
+  .ymd-group{ display:flex; align-items:center; gap:6px; }
+  .ymd-group select{ flex:1; min-width:0; text-align:center; }
+  .ymd-group select:first-child{ flex:1.4; }
+  .dow-row{ display:flex; gap:6px; }
+  .dow-chip{
+    flex:1; min-width:0; padding:9px 0; border-radius:9px; font-weight:700; font-size:.85rem;
+    border:1px solid var(--line-strong); background:var(--surface-2); color:var(--ink-soft);
+  }
+  .dow-chip.active{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .modal-actions{ display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; align-items:stretch; }
+  /* 긍정적인 동작(저장·수정)이 가장 넓게 자리를 차지하고, 삭제처럼 되돌릴 수
+     없는 동작은 글자 길이만큼만 차지하도록 — 라벨이 길다고 더 커지지 않게. */
+  .modal-actions .btn{ flex:0 1 auto; width:auto; margin-top:0; min-width:0; }
+  .modal-actions .btn-primary, .modal-actions .btn-grow{ flex:1 1 auto; min-width:120px; }
+  .modal-actions .btn-danger, .modal-actions .btn-ghost{ font-size:.88rem; padding:10px 15px; }
+
+  /* ---------- info block (org popup) ---------- */
+  .info-block{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; margin-top:14px; display:flex; flex-direction:column; gap:7px;
+  }
+  .info-row{ display:flex; justify-content:space-between; gap:10px; font-size:.85rem; }
+  .info-row .k{ color:var(--ink-soft); font-weight:600; flex:none; }
+  .info-row .v{ color:var(--ink); font-weight:600; text-align:right; overflow-wrap:anywhere; }
+
+  /* ---------- section heads ---------- */
+  .section-head{ display:flex; align-items:center; justify-content:space-between; margin: 26px 0 12px; gap:10px; }
+  .section-head h3{ font-size:1.05rem; }
+  .page-head{ margin-bottom:16px; }
+  .page-head h2{ font-size:1.45rem; }
+
+  /* ---------- org chart ---------- */
+  .org-admin-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:16px 18px; display:flex; align-items:center; gap:12px; max-width:340px; margin:0 auto;
+    box-shadow: var(--shadow);
+  }
+  .org-admin-card .avatar{ width:44px; height:44px; font-size:1.05rem; }
+  .org-connector{ width:2px; height:22px; background:var(--line-strong); margin:0 auto; }
+  .org-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap:10px;
+  }
+  .org-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 15px;
+    display:flex; flex-direction:column; gap:7px; text-align:left; width:100%;
+  }
+  button.org-card{ font-family:inherit; }
+  .org-card-top{ display:flex; align-items:center; gap:9px; }
+  .org-name{ font-weight:700; flex:1; }
+  .org-position{
+    display:inline-flex; align-self:flex-start; font-size:.76rem; font-weight:700; padding:3px 10px;
+    border-radius:999px; background:var(--accent-soft); color:var(--accent);
+  }
+  .org-position.unset{ background:var(--surface-2); color:var(--ink-faint); font-weight:600; }
+  .org-group{ margin-top:22px; }
+  .org-group:first-of-type{ margin-top:0; }
+  .org-group-head{ display:flex; align-items:center; gap:9px; margin-bottom:10px; }
+  .org-group-name{ font-family:'Noto Serif KR',serif; font-weight:700; font-size:1rem; flex:none; }
+  .org-group-name.unset{ color:var(--ink-faint); font-family:'Noto Sans KR',sans-serif; font-weight:600; font-size:.92rem; }
+  .org-group-count{
+    font-size:.72rem; font-weight:700; color:var(--ink-soft); background:var(--surface-2);
+    border:1px solid var(--line); padding:2px 9px; border-radius:999px; flex:none;
+  }
+  .org-group-rule{ flex:1; height:1px; background:var(--line); }
+  .org-meta{ font-size:.74rem; color:var(--ink-faint); }
+  .org-card-actions{ display:flex; gap:6px; margin-top:2px; }
+  .badge-inactive{ font-size:.7rem; color:var(--ink-faint); border:1px solid var(--line-strong); padding:1px 7px; border-radius:999px; }
+  .badge-manage{
+    align-self:flex-start; font-size:.7rem; font-weight:700; letter-spacing:.02em;
+    color:var(--accent); background:var(--accent-soft); padding:2px 9px; border-radius:999px;
+  }
+  .check-sub{
+    display:block; margin-top:5px; font-weight:400; font-size:.78rem;
+    color:var(--ink-faint); line-height:1.5;
+  }
+  .addmember-card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:12px; }
+
+  [hidden]{ display:none !important; }
+</style>
+
+<div id="app"></div>
+
+<!-- ============================================================
+     Firebase 연결층
+     이 블록만 Firebase를 알고, 아래 앱 코드에는 손대지 않아요.
+     앱이 쓰던 db.collection(...).doc(...).get() 모양을 그대로
+     흉내 내서 window.__mariBackend 로 넘겨줍니다.
+     ============================================================ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+    createUserWithEmailAndPassword, signOut, sendPasswordResetEmail,
+    updatePassword, deleteUser
+  } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+  import {
+    initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+    collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
+    onSnapshot, query, where, orderBy, limit
+  } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7aGmjsEwR6xisk1brOXrrbWQc4NeqjZY",
+    authDomain: "mari-schedule.firebaseapp.com",
+    projectId: "mari-schedule",
+    storageBucket: "mari-schedule.firebasestorage.app",
+    messagingSenderId: "450301025372",
+    appId: "1:450301025372:web:89d14d8483b4b028d51a99"
+  };
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    // 로컬 캐시를 켜두면 두 번째 접속부터는 바뀐 것만 받아와서
+    // 무료 사용량을 훨씬 아끼고 화면도 빨리 떠요.
+    const fs = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+
+    const seg = (p) => String(p).split('/').filter(Boolean);
+    const wrapDoc = (s) => ({
+      id: s.id,
+      exists: typeof s.exists === 'function' ? s.exists() : !!s.exists,
+      data: () => s.data()
+    });
+    const wrapQuery = (s) => {
+      const docs = s.docs.map(wrapDoc);
+      return { docs, size: docs.length, empty: docs.length === 0, docChanges: () => [] };
+    };
+
+    function makeQuery(collPath, clauses){
+      const build = () => query(collection(fs, ...seg(collPath)), ...clauses);
+      return {
+        where: (f, op, v) => makeQuery(collPath, clauses.concat([where(f, op, v)])),
+        orderBy: (f, dir) => makeQuery(collPath, clauses.concat([orderBy(f, dir || 'asc')])),
+        limit: (n) => makeQuery(collPath, clauses.concat([limit(n)])),
+        get: () => getDocs(build()).then(wrapQuery),
+        onSnapshot: (next, err) => onSnapshot(build(), (s) => next(wrapQuery(s)), err)
+      };
+    }
+
+    function makeDocRef(path){
+      const parts = seg(path);
+      const ref = doc(fs, ...parts);
+      return {
+        id: parts[parts.length - 1],
+        path,
+        get: () => getDoc(ref).then(wrapDoc),
+        set: (data) => setDoc(ref, data),
+        update: (data) => updateDoc(ref, data),
+        delete: () => deleteDoc(ref),
+        onSnapshot: (next, err) => onSnapshot(ref, (s) => next(wrapDoc(s)), err),
+        collection: (sub) => makeCollRef(path + '/' + sub)
+      };
+    }
+
+    function makeCollRef(path){
+      const q = makeQuery(path, []);
+      q.path = path;
+      q.doc = (id) => makeDocRef(path + '/' + (id || doc(collection(fs, ...seg(path))).id));
+      q.add = (data) => { const r = q.doc(); return r.set(data).then(() => r); };
+      return q;
+    }
+
+    // 구성원을 관리자가 직접 추가할 때 쓰는 두 번째 인증 창구.
+    // 기본 창구로 계정을 만들면 로그인이 새 계정으로 바뀌어 버려요.
+    let secondary = null;
+    const secondaryAuth = () => {
+      if (!secondary) secondary = getAuth(initializeApp(firebaseConfig, 'secondary'));
+      return secondary;
+    };
+
+    window.__mariBackend = {
+      db: { doc: makeDocRef, collection: makeCollRef },
+      auth: {
+        onChange: (fn) => onAuthStateChanged(auth, (u) => fn(u ? { uid: u.uid, email: u.email } : null)),
+        signIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw).then(() => true),
+        signUp: (email, pw) => createUserWithEmailAndPassword(auth, email, pw).then((c) => c.user.uid),
+        signUpSecondary: (email, pw) => {
+          const sa = secondaryAuth();
+          return createUserWithEmailAndPassword(sa, email, pw)
+            .then((c) => signOut(sa).then(() => c.user.uid));
+        },
+        signOut: () => signOut(auth),
+        sendReset: (email) => sendPasswordResetEmail(auth, email),
+        updatePassword: (pw) => updatePassword(auth.currentUser, pw),
+        deleteCurrentUser: () => (auth.currentUser ? deleteUser(auth.currentUser) : Promise.resolve())
+      }
+    };
+    window.dispatchEvent(new Event('mari-backend-ready'));
+  } catch (e) {
+    console.error('Firebase 초기화 실패:', e);
+    window.dispatchEvent(new Event('mari-backend-failed'));
+  }
+</script>
+
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- constants ---------------- */
+  var TAG_COUNT = 10;
+  var DOW = ['일','월','화','수','목','금','토'];
+  // 대한민국 공휴일 (음력·대체공휴일 포함). 아티팩트는 외부 API를 호출할 수
+  // 없어서 표로 들고 있어요. 표에 없는 연도는 공휴일 표시만 생략돼요.
+  var HOLIDAYS = {
+    // 2026
+    '2026-01-01':'신정','2026-02-16':'설날 연휴','2026-02-17':'설날',
+    '2026-02-18':'설날 연휴','2026-03-01':'삼일절','2026-03-02':'대체공휴일',
+    '2026-05-05':'어린이날','2026-05-24':'부처님오신날','2026-05-25':'대체공휴일',
+    '2026-06-06':'현충일','2026-08-15':'광복절','2026-08-17':'대체공휴일',
+    '2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴',
+    '2026-10-03':'개천절','2026-10-05':'대체공휴일','2026-10-09':'한글날',
+    '2026-12-25':'성탄절',
+    // 2027
+    '2027-01-01':'신정','2027-02-06':'설날 연휴','2027-02-07':'설날',
+    '2027-02-08':'설날 연휴','2027-02-09':'대체공휴일','2027-03-01':'삼일절',
+    '2027-05-05':'어린이날','2027-05-13':'부처님오신날','2027-06-06':'현충일',
+    '2027-08-15':'광복절','2027-08-16':'대체공휴일','2027-09-14':'추석 연휴',
+    '2027-09-15':'추석','2027-09-16':'추석 연휴','2027-10-03':'개천절',
+    '2027-10-04':'대체공휴일','2027-10-09':'한글날','2027-10-11':'대체공휴일',
+    '2027-12-25':'성탄절','2027-12-27':'대체공휴일',
+    // 2028
+    '2028-01-01':'신정','2028-01-26':'설날 연휴','2028-01-27':'설날',
+    '2028-01-28':'설날 연휴','2028-03-01':'삼일절','2028-05-02':'부처님오신날',
+    '2028-05-05':'어린이날','2028-06-06':'현충일','2028-08-15':'광복절',
+    '2028-10-02':'추석 연휴','2028-10-03':'개천절·추석','2028-10-04':'추석 연휴',
+    '2028-10-05':'대체공휴일','2028-10-09':'한글날','2028-12-25':'성탄절',
+    // 2029
+    '2029-01-01':'신정','2029-02-12':'설날 연휴','2029-02-13':'설날',
+    '2029-02-14':'설날 연휴','2029-03-01':'삼일절','2029-05-05':'어린이날',
+    '2029-05-07':'대체공휴일','2029-05-20':'부처님오신날','2029-05-21':'대체공휴일',
+    '2029-06-06':'현충일','2029-08-15':'광복절','2029-09-21':'추석 연휴',
+    '2029-09-22':'추석','2029-09-23':'추석 연휴','2029-09-24':'대체공휴일',
+    '2029-10-03':'개천절','2029-10-09':'한글날','2029-12-25':'성탄절',
+    // 2030
+    '2030-01-01':'신정','2030-02-02':'설날 연휴','2030-02-03':'설날',
+    '2030-02-04':'설날 연휴','2030-02-05':'대체공휴일','2030-03-01':'삼일절',
+    '2030-05-05':'어린이날','2030-05-06':'대체공휴일','2030-05-09':'부처님오신날',
+    '2030-06-06':'현충일','2030-08-15':'광복절','2030-09-11':'추석 연휴',
+    '2030-09-12':'추석','2030-09-13':'추석 연휴','2030-10-03':'개천절',
+    '2030-10-09':'한글날','2030-12-25':'성탄절',
+    // 2031
+    '2031-01-01':'신정','2031-01-22':'설날 연휴','2031-01-23':'설날',
+    '2031-01-24':'설날 연휴','2031-03-01':'삼일절','2031-03-03':'대체공휴일',
+    '2031-05-05':'어린이날','2031-05-28':'부처님오신날','2031-06-06':'현충일',
+    '2031-08-15':'광복절','2031-09-30':'추석 연휴','2031-10-01':'추석',
+    '2031-10-02':'추석 연휴','2031-10-03':'개천절','2031-10-09':'한글날',
+    '2031-12-25':'성탄절',
+    // 2032
+    '2032-01-01':'신정','2032-02-10':'설날 연휴','2032-02-11':'설날',
+    '2032-02-12':'설날 연휴','2032-03-01':'삼일절','2032-05-05':'어린이날',
+    '2032-05-16':'부처님오신날','2032-05-17':'대체공휴일','2032-06-06':'현충일',
+    '2032-08-15':'광복절','2032-08-16':'대체공휴일','2032-09-18':'추석 연휴',
+    '2032-09-19':'추석','2032-09-20':'추석 연휴','2032-09-21':'대체공휴일',
+    '2032-10-03':'개천절','2032-10-04':'대체공휴일','2032-10-09':'한글날',
+    '2032-10-11':'대체공휴일','2032-12-25':'성탄절','2032-12-27':'대체공휴일',
+    // 2033
+    '2033-01-01':'신정','2033-01-30':'설날 연휴','2033-01-31':'설날',
+    '2033-02-01':'설날 연휴','2033-02-02':'대체공휴일','2033-03-01':'삼일절',
+    '2033-05-05':'어린이날','2033-05-06':'부처님오신날','2033-06-06':'현충일',
+    '2033-08-15':'광복절','2033-09-07':'추석 연휴','2033-09-08':'추석',
+    '2033-09-09':'추석 연휴','2033-10-03':'개천절','2033-10-09':'한글날',
+    '2033-10-10':'대체공휴일','2033-12-25':'성탄절','2033-12-26':'대체공휴일',
+    // 2034
+    '2034-01-01':'신정','2034-02-18':'설날 연휴','2034-02-19':'설날',
+    '2034-02-20':'설날 연휴','2034-02-21':'대체공휴일','2034-03-01':'삼일절',
+    '2034-05-05':'어린이날','2034-05-25':'부처님오신날','2034-06-06':'현충일',
+    '2034-08-15':'광복절','2034-09-26':'추석 연휴','2034-09-27':'추석',
+    '2034-09-28':'추석 연휴','2034-10-03':'개천절','2034-10-09':'한글날',
+    '2034-12-25':'성탄절',
+    // 2035
+    '2035-01-01':'신정','2035-02-07':'설날 연휴','2035-02-08':'설날',
+    '2035-02-09':'설날 연휴','2035-03-01':'삼일절','2035-05-05':'어린이날',
+    '2035-05-07':'대체공휴일','2035-05-15':'부처님오신날','2035-06-06':'현충일',
+    '2035-08-15':'광복절','2035-09-15':'추석 연휴','2035-09-16':'추석',
+    '2035-09-17':'추석 연휴','2035-09-18':'대체공휴일','2035-10-03':'개천절',
+    '2035-10-09':'한글날','2035-12-25':'성탄절',
+    // 2036
+    '2036-01-01':'신정','2036-01-27':'설날 연휴','2036-01-28':'설날',
+    '2036-01-29':'설날 연휴','2036-01-30':'대체공휴일','2036-03-01':'삼일절',
+    '2036-03-03':'대체공휴일','2036-05-03':'부처님오신날','2036-05-05':'어린이날',
+    '2036-05-06':'대체공휴일','2036-06-06':'현충일','2036-08-15':'광복절',
+    '2036-10-03':'개천절·추석 연휴','2036-10-04':'추석','2036-10-05':'추석 연휴',
+    '2036-10-06':'대체공휴일','2036-10-07':'대체공휴일','2036-10-09':'한글날',
+    '2036-12-25':'성탄절',
+    // 2037
+    '2037-01-01':'신정','2037-02-14':'설날 연휴','2037-02-15':'설날',
+    '2037-02-16':'설날 연휴','2037-02-17':'대체공휴일','2037-03-01':'삼일절',
+    '2037-03-02':'대체공휴일','2037-05-05':'어린이날','2037-05-22':'부처님오신날',
+    '2037-06-06':'현충일','2037-08-15':'광복절','2037-08-17':'대체공휴일',
+    '2037-09-23':'추석 연휴','2037-09-24':'추석','2037-09-25':'추석 연휴',
+    '2037-10-03':'개천절','2037-10-05':'대체공휴일','2037-10-09':'한글날',
+    '2037-12-25':'성탄절',
+    // 2038
+    '2038-01-01':'신정','2038-02-03':'설날 연휴','2038-02-04':'설날',
+    '2038-02-05':'설날 연휴','2038-03-01':'삼일절','2038-05-05':'어린이날',
+    '2038-05-11':'부처님오신날','2038-06-06':'현충일','2038-08-15':'광복절',
+    '2038-08-16':'대체공휴일','2038-09-12':'추석 연휴','2038-09-13':'추석',
+    '2038-09-14':'추석 연휴','2038-09-15':'대체공휴일','2038-10-03':'개천절',
+    '2038-10-04':'대체공휴일','2038-10-09':'한글날','2038-10-11':'대체공휴일',
+    '2038-12-25':'성탄절','2038-12-27':'대체공휴일',
+    // 2039
+    '2039-01-01':'신정','2039-01-23':'설날 연휴','2039-01-24':'설날',
+    '2039-01-25':'설날 연휴','2039-01-26':'대체공휴일','2039-03-01':'삼일절',
+    '2039-04-30':'부처님오신날','2039-05-02':'대체공휴일','2039-05-05':'어린이날',
+    '2039-06-06':'현충일','2039-08-15':'광복절','2039-10-01':'추석 연휴',
+    '2039-10-02':'추석','2039-10-03':'개천절·추석 연휴','2039-10-04':'대체공휴일',
+    '2039-10-05':'대체공휴일','2039-10-09':'한글날','2039-10-10':'대체공휴일',
+    '2039-12-25':'성탄절','2039-12-26':'대체공휴일',
+    // 2040
+    '2040-01-01':'신정','2040-02-11':'설날 연휴','2040-02-12':'설날',
+    '2040-02-13':'설날 연휴','2040-02-14':'대체공휴일','2040-03-01':'삼일절',
+    '2040-05-05':'어린이날','2040-05-07':'대체공휴일','2040-05-18':'부처님오신날',
+    '2040-06-06':'현충일','2040-08-15':'광복절','2040-09-20':'추석 연휴',
+    '2040-09-21':'추석','2040-09-22':'추석 연휴','2040-10-03':'개천절',
+    '2040-10-09':'한글날','2040-12-25':'성탄절'
+  };
+  function holidayOf(dateStr){ return (dateStr && HOLIDAYS[dateStr]) || ''; }
+
+  // Starting suggestions for 직무 — a centre can type anything else it wants.
+  var DEFAULT_JOBS = ['상담','심리검사','놀이치료','미술치료','언어치료','학습치료','행정','운영'];
+  var MIN_PW = 6;             // Firebase 인증의 최소 비밀번호 길이
+  var COLORMODE_KEY = 'schedule-board-colormode-v1';
+  var NO_JOB = '__nojob__';   // filter sentinel for "직무 미지정"
+  var NO_COUNSELOR = '__nocounselor__';   // 회원 관리의 "담당 미지정" 필터
+
+  /* ---------------- state ---------------- */
+  var state = {
+    dbReady: null,            // null = unknown, false = unavailable, true = ready
+    db: null,
+    auth: null,
+    session: null,            // {accountId} — Firebase 인증 상태에서 나와요
+    authNotice: '',           // 로그인 화면에 한 번 띄울 안내
+    resetMsg: '', resetBusy: false,
+    account: undefined,       // undefined = loading, null = logged out, obj = my account (role/orgId/name/...)
+    orgAdmin: null,           // the org's admin account (fetched separately when I'm a member)
+    members: [],              // [{id, name, email, phone, orgId, active, position, job, colorIndex, order, joinedAt}]
+    entries: [],              // [{id, orgId, counselorId, counselorName, date, start, end, title, memo}]
+    orgIdSubscribed: null,    // which orgId the members/entries subscriptions currently cover
+
+    view: { year: null, month: null },
+    adminFilter: null,        // member id being filtered (사람 기준일 때)
+    adminJobFilter: null,     // jobKey being filtered (직무 기준일 때), or NO_JOB
+    colorMode: loadColorMode(),   // 'job' | 'person' — 달력 색상 기준
+    jobColorPick: null,       // 색상을 고르는 중인 직무 이름
+    dayModal: null,
+    editEntry: null,
+    repeatCount: 1,           // 새 일정 반복 횟수 (1~20, 첫 회 포함)
+    repeatDows: [],           // 반복할 요일 (0=일 … 6=토)
+    entriesError: '',         // 일정 구독이 실패하면 달력에 알려주기 위해
+    confirmBox: null,         // 앱 내부 확인창 {title, message, okLabel, danger, onOk}
+    toast: '',                // 저장 결과 등 잠깐 보여주는 안내
+    clients: [],              // [{id, orgId, name, birth, guardian, phone, email, counselorId, memo}]
+    clientEdit: null,         // 편집/추가 중인 내담자 (null이면 닫힘)
+    clientView: null,         // 읽기 전용 상세 팝업으로 열어둔 내담자 id
+    clientSearch: '',
+    clientFilter: null,       // 회원 관리에서 보고 있는 담당 구성원 (null이면 전체)
+    clientBusy: false, clientError: '',
+    boards: [],               // [{id, orgId, name, writeRestricted, createdAt}]
+    posts: [],                // [{id, orgId, boardId, title, body, authorId, authorName, createdAt}]
+    boardId: null,            // 열어둔 게시판 (null이면 게시판 목록)
+    postId: null,             // 열어둔 글
+    boardEdit: null,          // 게시판 만들기/수정 중
+    postEdit: null,           // 글쓰기/수정 중
+    boardReorder: false,      // 게시판 순서 편집 모드
+    boardBusy: false, boardError: '',
+    postBusy: false, postError: '',
+
+    authMode: 'login',        // 'login' | 'signup'
+    signupIsAdmin: false,
+    loginError: '', loginBusy: false,
+    signupError: '', signupBusy: false,
+
+    menuOpen: false,
+    panel: 'calendar',        // 'calendar' | 'orgchart' | 'settings'
+    orgPopupId: null,
+    orgResetMsg: '',
+    showAddMember: false, addMemberBusy: false,
+    settingsMsg: '', settingsBusy: false,
+    pwMsg: '', pwBusy: false,
+
+    loadingStuck: false       // true once a loading screen has been showing unusually long
+  };
+
+  var today = new Date();
+  state.view.year = today.getFullYear();
+  state.view.month = today.getMonth();
+
+  function pad2(n){ return n < 10 ? '0'+n : ''+n; }
+  function fmtDate(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
+  function todayStr(){ return fmtDate(today.getFullYear(), today.getMonth(), today.getDate()); }
+  function fmtDateOnly(iso){ return iso ? String(iso).slice(0,10) : '-'; }
+  function normEmail(s){ return (s||'').trim().toLowerCase(); }
+  function normPhone(s){ return (s||'').replace(/\D/g,''); }
+
+  function loadColorMode(){
+    try{
+      return localStorage.getItem(COLORMODE_KEY) === 'person' ? 'person' : 'job';
+    }catch(e){ return 'job'; }
+  }
+  function saveColorMode(m){
+    try{ localStorage.setItem(COLORMODE_KEY, m); }catch(e){ /* ignore */ }
+  }
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // Firebase 인증이 돌려주는 오류 코드를 사람이 읽을 말로.
+  function authMessage(err, fallback){
+    var code = (err && err.code) || '';
+    if(code.indexOf('invalid-credential') !== -1 ||
+       code.indexOf('wrong-password') !== -1 ||
+       code.indexOf('user-not-found') !== -1) return '이메일 또는 비밀번호가 올바르지 않아요.';
+    if(code.indexOf('invalid-email') !== -1) return '이메일 주소 형식이 올바르지 않아요.';
+    if(code.indexOf('email-already-in-use') !== -1) return '이미 가입된 이메일이에요. 로그인해주세요.';
+    if(code.indexOf('weak-password') !== -1) return '비밀번호는 '+MIN_PW+'자 이상이어야 해요.';
+    if(code.indexOf('too-many-requests') !== -1) return '시도가 너무 많아 잠시 막혔어요. 잠시 뒤에 다시 해주세요.';
+    if(code.indexOf('network') !== -1) return '네트워크 연결을 확인해주세요.';
+    if(code.indexOf('requires-recent-login') !== -1) return '보안을 위해 다시 로그인한 뒤 변경해주세요.';
+    if(code.indexOf('user-disabled') !== -1) return '사용이 중지된 계정이에요. 관리자에게 문의해주세요.';
+    return fallback || '처리에 실패했어요. 다시 시도해주세요.';
+  }
+
+  /* ---------------- boot / session lifecycle ---------------- */
+  var accountUnsub = null;
+  var orgUnsubs = [];
+
+  function clearOrgSubs(){
+    orgUnsubs.forEach(function(u){ try{ u(); }catch(e){} });
+    orgUnsubs = [];
+    state.orgIdSubscribed = null;
+    state.members = [];
+    state.entries = [];
+    state.clients = [];
+    state.boards = [];
+    state.posts = [];
+    state.orgAdmin = null;
+  }
+  function clearAccountSub(){
+    if(accountUnsub){ try{ accountUnsub(); }catch(e){} accountUnsub = null; }
+  }
+
+  // 회원가입 중에는 인증 상태가 먼저 바뀌는데 계정 문서는 아직 없어요.
+  // 그 사이에 리스너가 붙으면 "계정 없음"으로 판단해 로그아웃시켜 버리니,
+  // 문서를 다 만든 뒤에 직접 붙이도록 잠깐 막아둡니다.
+  var signupInProgress = false;
+
+  function boot(){
+    var settled = false;
+    var start = function(backend){
+      if(settled) return;
+      settled = true;
+      if(!backend){ state.dbReady = false; render(); return; }
+      state.db = backend.db;
+      state.auth = backend.auth;
+      state.dbReady = true;
+
+      backend.auth.onChange(function(user){
+        if(signupInProgress) return;
+        if(user){
+          state.session = { accountId: user.uid };
+          attachAccountListener(user.uid);
+        } else {
+          state.session = null;
+          state.account = null;
+          clearAccountSub(); clearOrgSubs();
+          render();
+        }
+      });
+      render();
+    };
+
+    if(window.__mariBackend){ start(window.__mariBackend); }
+    else {
+      window.addEventListener('mari-backend-ready', function(){ start(window.__mariBackend); });
+      window.addEventListener('mari-backend-failed', function(){ start(null); });
+    }
+    // 연결이 아예 응답하지 않을 때 "불러오는 중"에 갇히지 않도록.
+    setTimeout(function(){ if(!settled){ start(null); } }, 12000);
+    render();
+  }
+
+  function attachAccountListener(accountId){
+    clearAccountSub(); clearOrgSubs();
+    state.account = undefined;
+    var delivered = false;
+
+    var handleSnap = function(snap){
+      delivered = true;
+      if(!snap.exists){
+        // 계정 문서가 사라졌다 = 완전 삭제된 구성원. 로그인 자체를 끊어요.
+        state.account = null;
+        clearOrgSubs();
+        logout();
+        return;
+      }
+      var acct = Object.assign({}, snap.data()); acct.id = snap.id;
+      if(acct.role === 'member' && acct.active === false){
+        // withdrawn while active elsewhere: kick out immediately
+        state.account = null;
+        clearAccountSub(); clearOrgSubs();
+        state.authNotice = '탈퇴 처리된 계정이에요. 관리자에게 문의해주세요.';
+        logout();
+        return;
+      }
+      state.account = acct;
+      ensureOrgSubs(acct);
+      render();
+    };
+
+    accountUnsub = state.db.doc('accounts/'+accountId).onSnapshot(handleSnap, function(){
+      delivered = true;
+      state.account = null; render();
+    });
+
+    // Safety net: a live subscription should deliver its first snapshot
+    // "soon after registration", but right after this account was just
+    // created (a signup or admin-added member), fall back to a one-time
+    // read so nobody gets stuck on the loading screen if that first
+    // delivery is ever slow or missed.
+    setTimeout(function(){
+      if(delivered) return;
+      if(!state.session || state.session.accountId !== accountId) return;
+      if(state.account !== undefined) return;
+      state.db.doc('accounts/'+accountId).get().then(function(snap){
+        if(!delivered && state.session && state.session.accountId === accountId && state.account === undefined){
+          handleSnap(snap);
+        }
+      }).catch(function(){});
+    }, 4000);
+  }
+
+  // 가입 직후처럼 계정 문서를 막 만든 뒤 직접 붙일 때 씁니다.
+  function loginWithAccountId(accountId){
+    signupInProgress = false;
+    state.session = { accountId: accountId };
+    attachAccountListener(accountId);
+    render();
+  }
+
+  function logout(){
+    clearAccountSub(); clearOrgSubs();
+    state.session = null; state.account = null;
+    state.panel = 'calendar'; state.menuOpen = false;
+    state.boardId = null; state.postId = null; state.clientFilter = null;
+    // 로그아웃하면 항상 로그인 탭으로 — 가입 탭에 머물러 있으면 헷갈려요.
+    state.authMode = 'login';
+    state.loginError = ''; state.signupError = '';
+    if(state.auth){ state.auth.signOut().catch(function(){}); }
+    render();
+  }
+
+  function ensureOrgSubs(acct){
+    var orgId = acct.role === 'admin' ? acct.id : acct.orgId;
+    if(!orgId) return;
+    if(state.orgIdSubscribed === orgId) return;
+    clearOrgSubs();
+    state.orgIdSubscribed = orgId;
+    var db = state.db;
+
+    if(acct.role === 'admin'){
+      state.orgAdmin = acct;
+    } else {
+      var u1 = db.doc('accounts/'+orgId).onSnapshot(function(snap){
+        state.orgAdmin = snap.exists ? Object.assign({id:snap.id}, snap.data()) : null;
+        render();
+      });
+      orgUnsubs.push(u1);
+    }
+
+    var u2 = db.collection('accounts').where('orgId','==',orgId).orderBy('order').limit(500).onSnapshot(function(qs){
+      state.members = qs.docs.map(function(d){ var v=Object.assign({}, d.data()); v.id=d.id; return v; });
+      render();
+    }, function(){ /* leave last-known members in place; the store retries internally */ });
+    orgUnsubs.push(u2);
+
+    // limit() accepts 1–1000; anything larger is rejected at subscribe time
+    // and the calendar would silently never receive a single entry.
+    var u3 = db.collection('schedule').where('orgId','==',orgId).orderBy('date').limit(1000).onSnapshot(function(qs){
+      state.entriesError = '';
+      state.entries = qs.docs.map(function(d){ var v=Object.assign({}, d.data()); v.id=d.id; return v; });
+      render();
+    }, function(err){
+      // A terminal subscription error would otherwise look like "nothing is
+      // ever saved" — say so instead of showing a permanently empty calendar.
+      state.entriesError = (err && err.code) || 'unavailable';
+      render();
+    });
+    orgUnsubs.push(u3);
+
+    var u4 = db.collection('clients').where('orgId','==',orgId).orderBy('name').limit(1000).onSnapshot(function(qs){
+      state.clients = qs.docs.map(function(d){ var v=Object.assign({}, d.data()); v.id=d.id; return v; });
+      render();
+    }, function(){ /* 내담자 목록만 비어 보일 뿐 일정에는 영향 없음 */ });
+    orgUnsubs.push(u4);
+
+    var u5 = db.collection('boards').where('orgId','==',orgId).orderBy('createdAt').limit(200).onSnapshot(function(qs){
+      state.boards = qs.docs.map(function(d){ var v=Object.assign({}, d.data()); v.id=d.id; return v; });
+      render();
+    }, function(){ /* 게시판 목록만 비어 보임 */ });
+    orgUnsubs.push(u5);
+
+    var u6 = db.collection('posts').where('orgId','==',orgId).orderBy('createdAt').limit(1000).onSnapshot(function(qs){
+      state.posts = qs.docs.map(function(d){ var v=Object.assign({}, d.data()); v.id=d.id; return v; });
+      render();
+    }, function(){ /* 글 목록만 비어 보임 */ });
+    orgUnsubs.push(u6);
+  }
+
+  /* ---------------- derived helpers ---------------- */
+  function isAdmin(){ return !!(state.account && state.account.role === 'admin'); }
+  // 관리자이거나, 관리자가 조직도에서 "일정 관리" 권한을 준 구성원.
+  // 센터 전체 일정을 보고 입력·수정·삭제할 수 있지만 조직도·센터 설정은 못 바꿔요.
+  function canManageSchedule(){
+    return isAdmin() || !!(state.account && state.account.manageSchedule === true);
+  }
+  function myOrgId(){ return state.account ? (state.account.role==='admin' ? state.account.id : state.account.orgId) : null; }
+  function orgAdminInfo(){ return isAdmin() ? state.account : state.orgAdmin; }
+
+  function memberById(id){
+    if(isAdmin() && state.account.id === id) return state.account;
+    for(var i=0;i<state.members.length;i++) if(state.members[i].id===id) return state.members[i];
+    return null;
+  }
+
+  // 직무(job): free text, but members who typed the same thing are grouped
+  // together automatically. `duties` is the old free-text field — read it as a
+  // fallback so anything entered before this change still shows up, until the
+  // admin saves that member once (which clears it).
+  function jobOf(c){ return String((c && (c.job || c.duties)) || '').trim(); }
+  function jobKey(j){ return j.trim().toLowerCase().replace(/\s+/g,' '); }
+
+  // Distinct 직무 values currently in use, in the order members appear.
+  function orgJobList(){
+    var seen = {}, out = [];
+    state.members.forEach(function(c){
+      var j = jobOf(c);
+      if(!j) return;
+      var k = jobKey(j);
+      if(!seen[k]){ seen[k] = true; out.push(j); }
+    });
+    return out;
+  }
+
+  // What the 직무 input suggests: what this org already uses first, then
+  // common defaults so the very first member still has something to pick.
+  function jobSuggestions(){
+    var out = orgJobList();
+    var seen = {};
+    out.forEach(function(j){ seen[jobKey(j)] = true; });
+    DEFAULT_JOBS.forEach(function(j){ if(!seen[jobKey(j)]) out.push(j); });
+    return out;
+  }
+
+  // Members bucketed by 직무; anyone without one lands in a trailing group.
+  function groupedMembers(){
+    var groups = [], index = {}, unassigned = { name:'', members:[] };
+    state.members.forEach(function(c){
+      var j = jobOf(c);
+      if(!j){ unassigned.members.push(c); return; }
+      var k = jobKey(j);
+      if(!index[k]){ index[k] = { name:j, members:[] }; groups.push(index[k]); }
+      index[k].members.push(c);
+    });
+    if(unassigned.members.length) groups.push(unassigned);
+    return groups;
+  }
+
+  /* ---------------- 직무별 색상 ---------------- */
+  // Admin-chosen 직무 colours live on the admin's own account document, so
+  // members receive them live through the subscription they already hold.
+  function jobColorMap(){
+    var org = orgAdminInfo();
+    var arr = org && org.jobColors;
+    var map = {};
+    if(Object.prototype.toString.call(arr) === '[object Array]'){
+      arr.forEach(function(e){
+        if(e && e.name != null) map[jobKey(String(e.name))] = (e.colorIndex||0) % TAG_COUNT;
+      });
+    }
+    return map;
+  }
+  // Until someone picks one, a 직무 gets a stable colour derived from its
+  // name — so grouping is visible immediately and never shuffles later.
+  function defaultJobColor(key){
+    var h = 0;
+    for(var i=0;i<key.length;i++){ h = (h*31 + key.charCodeAt(i)) % 100000; }
+    return h % TAG_COUNT;
+  }
+  function jobColorIndex(job){
+    var k = jobKey(String(job||''));
+    if(!k) return 0;
+    var map = jobColorMap();
+    return map[k] !== undefined ? map[k] : defaultJobColor(k);
+  }
+  // The colour one member's entries should use under the current mode.
+  function colorIndexFor(member){
+    if(!member) return 0;
+    // Only the admin has the 사람/직무 toggle, so everyone else always sees
+    // 직무 colours rather than whatever setting happens to be stored locally.
+    var mode = canManageSchedule() ? state.colorMode : 'job';
+    if(mode === 'job'){
+      var j = jobOf(member);
+      if(j) return jobColorIndex(j);
+    }
+    return (member.colorIndex||0) % TAG_COUNT;
+  }
+  function setJobColor(job, idx){
+    var org = orgAdminInfo();
+    if(!org || !org.id) return Promise.resolve();
+    var current = org.jobColors;
+    var arr = (Object.prototype.toString.call(current) === '[object Array]') ? current.slice() : [];
+    var k = jobKey(job), found = false;
+    arr = arr.map(function(e){
+      if(e && jobKey(String(e.name||'')) === k){ found = true; return { name:job, colorIndex:idx }; }
+      return e;
+    });
+    if(!found) arr.push({ name:job, colorIndex:idx });
+    return state.db.doc('accounts/'+org.id).update({ jobColors: arr });
+  }
+
+  function visibleEntries(){
+    if(!state.account) return [];
+    if(canManageSchedule()){
+      if(state.colorMode === 'job' && state.adminJobFilter){
+        var f = state.adminJobFilter;
+        return state.entries.filter(function(e){
+          var m = memberById(e.counselorId);
+          var k = m ? jobKey(jobOf(m)) : '';
+          return f === NO_JOB ? !k : k === f;
+        });
+      }
+      if(state.colorMode === 'person' && state.adminFilter){
+        return state.entries.filter(function(e){ return e.counselorId===state.adminFilter; });
+      }
+      return state.entries;
+    }
+    return state.entries.filter(function(e){ return e.counselorId === state.account.id; });
+  }
+
+  /* ---------------- 시간 / 반복 helpers ---------------- */
+  var DURATIONS = [10,20,30,40,45,50,60,70,80,90,100,110,120];
+
+  function hmToMin(s){
+    var m = /^(\d{1,2}):(\d{2})$/.exec(String(s||''));
+    return m ? (parseInt(m[1],10)*60 + parseInt(m[2],10)) : null;
+  }
+  function minToHM(t){
+    t = ((t % 1440) + 1440) % 1440;
+    return pad2(Math.floor(t/60)) + ':' + pad2(t%60);
+  }
+  // Snap a stored time onto the 5-minute grid the dropdowns offer.
+  function snapHM(s, fallback){
+    var t = hmToMin(s);
+    if(t === null) return fallback;
+    return minToHM(Math.round(t/5)*5);
+  }
+  function dateFromStr(s){
+    var p = String(s||'').split('-');
+    if(p.length !== 3) return null;
+    var d = new Date(+p[0], +p[1]-1, +p[2]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Walk forward from the start date, collecting `count` dates that fall on
+  // one of the chosen weekdays (the start date itself counts when it matches).
+  function repeatDates(startDate, dows, count){
+    var d = dateFromStr(startDate);
+    if(!d) return [];
+    var list = (dows && dows.length) ? dows : [d.getDay()];
+    var out = [], guard = 0;
+    while(out.length < count && guard < 500){
+      if(list.indexOf(d.getDay()) !== -1) out.push(fmtDate(d.getFullYear(), d.getMonth(), d.getDate()));
+      d.setDate(d.getDate()+1);
+      guard++;
+    }
+    return out;
+  }
+  function shortDate(s){ var p = String(s).split('-'); return (+p[1])+'/'+(+p[2]); }
+
+  /* ---------------- 내담자 회차 ---------------- */
+  // Sessions are numbered per 내담자 (the entry title), counted across every
+  // series, so a second batch of 4 continues at 5회차 rather than restarting.
+  function nameKey(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+  /* ---------------- 내담자(회원) ---------------- */
+  function clientById(id){
+    if(!id) return null;
+    for(var i=0;i<state.clients.length;i++) if(state.clients[i].id===id) return state.clients[i];
+    return null;
+  }
+  function clientByName(name){
+    var k = nameKey(name);
+    if(!k) return null;
+    for(var i=0;i<state.clients.length;i++) if(nameKey(state.clients[i].name)===k) return state.clients[i];
+    return null;
+  }
+  // An entry links to a client record by stored id first, then by name — so
+  // entries written before a client was registered light up automatically.
+  function clientForEntry(e){
+    if(!e) return null;
+    return (e.clientId && clientById(e.clientId)) || clientByName(e.title);
+  }
+  // Sessions are counted per client record where one exists, otherwise per
+  // title, so both kinds of entry still number continuously.
+  function clientKey(e){
+    var c = clientForEntry(e);
+    return c ? ('c:'+c.id) : (nameKey(e && e.title) ? ('t:'+nameKey(e.title)) : '');
+  }
+
+  var sessionMap = {};
+  function computeSessionNumbers(){
+    var byClient = {}, map = {};
+    state.entries.forEach(function(e){
+      var k = clientKey(e);
+      if(!k || !e.id) return;
+      (byClient[k] = byClient[k] || []).push(e);
+    });
+    Object.keys(byClient).forEach(function(k){
+      var list = byClient[k].slice().sort(function(a,b){
+        var d = String(a.date||'').localeCompare(String(b.date||''));
+        return d !== 0 ? d : String(a.start||'').localeCompare(String(b.start||''));
+      });
+      list.forEach(function(e, i){ map[e.id] = { n:i+1, total:list.length }; });
+    });
+    return map;
+  }
+  // Only worth showing once a client has more than one session on the board.
+  function sessionOf(entry){
+    var s = (entry && entry.id) ? sessionMap[entry.id] : null;
+    return (s && s.total > 1) ? s : null;
+  }
+
+  /* ---------------- 안내 토스트 ---------------- */
+  var toastTimer = null;
+  function showToast(msg){
+    state.toast = msg;
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ state.toast=''; render(); }, 5000);
+    render();
+  }
+
+  function entriesOnDate(dateStr){
+    return visibleEntries().filter(function(e){ return e.date===dateStr; })
+      .sort(function(a,b){ return (a.start||'').localeCompare(b.start||''); });
+  }
+
+  /* ---------------- render root ---------------- */
+  var root = document.getElementById('app');
+
+  // Re-rendering rebuilds the whole screen from innerHTML strings, which would
+  // otherwise wipe out anything the person is mid-typing (a validation error,
+  // a checkbox toggle, an async "saving..." state). Snapshot every form field
+  // (and focus/cursor position) before rebuilding, then restore it after.
+  function captureFormState(){
+    var out = {};
+    var active = document.activeElement;
+    out.focusId = (active && active.id) ? active.id : null;
+    if(out.focusId && active.selectionStart != null){
+      try{ out.selStart = active.selectionStart; out.selEnd = active.selectionEnd; }catch(e){}
+    }
+    root.querySelectorAll('input[id], textarea[id], select[id]').forEach(function(el){
+      out[el.id] = (el.type==='checkbox' || el.type==='radio') ? { checked: el.checked } : { value: el.value };
+    });
+    return out;
+  }
+  function applyFormState(snap){
+    if(!snap) return;
+    Object.keys(snap).forEach(function(id){
+      if(id==='focusId' || id==='selStart' || id==='selEnd') return;
+      var el = document.getElementById(id);
+      if(!el) return;
+      var rec = snap[id];
+      if(rec.checked !== undefined) el.checked = rec.checked;
+      else if(rec.value !== undefined) el.value = rec.value;
+    });
+    if(snap.focusId){
+      var el = document.getElementById(snap.focusId);
+      if(el){
+        el.focus();
+        if(snap.selStart != null && el.setSelectionRange){
+          try{ el.setSelectionRange(snap.selStart, snap.selEnd); }catch(e){}
+        }
+      }
+    }
+  }
+
+  // Watch how long we've been showing a loading screen. If it drags on
+  // (a slow first connection, a subscription that's slow to deliver its
+  // first snapshot, ...) offer a manual retry instead of leaving the
+  // person stuck looking at "불러오는 중" with no way out.
+  var loadingStartedAt = null;
+  var LOADING_STUCK_MS = 8000;
+  function isLoadingState(){
+    return state.dbReady === null || (!!state.session && state.account === undefined);
+  }
+  function loadingWatchdogTick(){
+    if(isLoadingState()){
+      if(loadingStartedAt === null) loadingStartedAt = Date.now();
+      if(!state.loadingStuck && (Date.now() - loadingStartedAt) > LOADING_STUCK_MS){
+        state.loadingStuck = true;
+        render();
+      }
+    } else {
+      loadingStartedAt = null;
+      if(state.loadingStuck) state.loadingStuck = false;
+    }
+  }
+  setInterval(loadingWatchdogTick, 1500);
+
+  function render(){
+    var snap = captureFormState();
+    renderInner();
+    applyFormState(snap);
+  }
+  function renderInner(){
+    if(state.dbReady === null){ root.innerHTML = tplLoading(); bindLoading(); return; }
+    if(state.dbReady === false){ root.innerHTML = tplUnavailable(); bindUnavailable(); return; }
+    if(state.session && state.account === undefined){ root.innerHTML = tplLoading(); bindLoading(); return; }
+
+    if(!state.session || !state.account){
+      root.innerHTML = tplAuth();
+      bindAuth();
+      return;
+    }
+    sessionMap = computeSessionNumbers();
+    root.innerHTML = tplApp();
+    bindApp();
+  }
+
+  /* ---------------- templates: loading / unavailable ---------------- */
+  function tplLoading(){
+    var html = '<div class="wrap"><div class="center-screen"><div style="text-align:center;">';
+    html += '<div class="muted">불러오는 중…</div>';
+    if(state.loadingStuck){
+      html += '<div class="note-msg" style="margin-top:14px;max-width:320px;">예상보다 오래 걸리고 있어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.</div>';
+      html += '<button class="btn btn-line" id="loading-retry" style="margin-top:12px;">다시 시도</button>';
+    }
+    html += '</div></div></div>';
+    return html;
+  }
+  function bindLoading(){
+    var btn = document.getElementById('loading-retry');
+    if(btn) btn.addEventListener('click', function(){ window.location.reload(); });
+  }
+  function tplUnavailable(){
+    return '<div class="wrap auth-shell"><div class="card">' +
+      '<div class="brand-eyebrow">상담 일정 공유판</div>' +
+      '<h1 style="margin-top:8px;font-size:1.35rem;">이 화면에서는 데이터를 불러올 수 없어요</h1>' +
+      '<p class="muted" style="margin-top:10px;line-height:1.6;">이 페이지는 조직 내부용 공유 일정판이에요. Claude 앱에서 로그인한 상태로 열어야 조직과 일정을 확인할 수 있어요.</p>' +
+      '<button class="btn btn-line" id="unavailable-retry" style="margin-top:16px;">다시 시도</button>' +
+      '</div></div>';
+  }
+  function bindUnavailable(){
+    var btn = document.getElementById('unavailable-retry');
+    if(btn) btn.addEventListener('click', function(){ window.location.reload(); });
+  }
+
+  /* ---------------- templates: auth (login / signup) ---------------- */
+  function tplAuth(){
+    var html = '<div class="wrap auth-shell"><div class="card">';
+    html += '<div class="brand-eyebrow">상담 일정 공유판</div>';
+    html += '<h1 style="margin-top:8px;font-size:1.4rem;">'+(state.authMode==='signup' ? '회원가입' : '로그인')+'</h1>';
+    html += '<div class="authtabs">';
+    html += '<button class="authtab'+(state.authMode==='login'?' active':'')+'" data-mode="login">로그인</button>';
+    html += '<button class="authtab'+(state.authMode==='signup'?' active':'')+'" data-mode="signup">회원가입</button>';
+    html += '</div>';
+
+    if(state.authMode==='signup'){ html += tplSignupPane(); } else { html += tplLoginPane(); }
+    html += '</div></div>';
+    return html;
+  }
+
+  function tplLoginPane(){
+    var html = '<p class="muted" style="margin-top:6px;">이메일과 비밀번호로 로그인해주세요.</p>';
+    html += '<div class="field"><label for="li-email">이메일</label><input id="li-email" type="email" autocomplete="username" placeholder="you@example.com"/></div>';
+    html += '<div class="field"><label for="li-password">비밀번호</label><input id="li-password" type="password" autocomplete="current-password" placeholder="비밀번호"/></div>';
+    if(state.authNotice) html += '<div class="note-msg">'+esc(state.authNotice)+'</div>';
+    if(state.resetMsg) html += '<div class="note-msg">'+esc(state.resetMsg)+'</div>';
+    if(state.loginError) html += '<div class="err-msg">'+esc(state.loginError)+'</div>';
+    html += '<button class="btn btn-primary" id="login-submit"'+(state.loginBusy?' disabled':'')+'>'+(state.loginBusy?'확인 중…':'로그인')+'</button>';
+    html += '<button class="link-btn" id="login-reset"'+(state.resetBusy?' disabled':'')+'>'+(state.resetBusy?'메일 보내는 중…':'비밀번호를 잊으셨나요?')+'</button>';
+    return html;
+  }
+
+  function tplSignupPane(){
+    var html = '<p class="muted" style="margin-top:6px;">여러 상담센터가 함께 사용하는 공유판이에요. 새 조직을 만들거나, 관리자 이메일로 기존 조직에 들어갈 수 있어요.</p>';
+    html += '<div class="field"><label for="su-name">이름</label><input id="su-name" placeholder="이름"/></div>';
+    html += '<div class="field"><label for="su-email">이메일</label><input id="su-email" type="email" placeholder="로그인에 사용할 이메일"/></div>';
+    html += '<div class="field"><label for="su-phone">휴대폰번호</label><input id="su-phone" type="tel" placeholder="010-0000-0000"/></div>';
+    html += '<div class="field"><label for="su-password">비밀번호</label><input id="su-password" type="password" autocomplete="new-password" placeholder="'+MIN_PW+'자 이상"/></div>';
+    html += '<div class="field"><label for="su-password2">비밀번호 확인</label><input id="su-password2" type="password" placeholder="다시 입력"/></div>';
+
+    html += '<div class="form-check"><input type="checkbox" id="su-isadmin"'+(state.signupIsAdmin?' checked':'')+'/>' +
+      '<label for="su-isadmin">새 상담센터를 만드는 관리자로 가입할게요</label></div>';
+
+    if(state.signupIsAdmin){
+      html += '<div class="field"><label for="su-orgname">센터 이름</label><input id="su-orgname" placeholder="예: 서대문 상담센터"/></div>';
+    } else {
+      html += '<div class="field"><label for="su-adminemail">관리자 이메일</label><input id="su-adminemail" type="email" placeholder="소속될 조직의 관리자 이메일"/>' +
+        '<div class="hint">입력한 이메일의 관리자가 만든 조직에 자동으로 가입돼요.</div></div>';
+    }
+
+    html += '<div class="hint" style="margin-top:14px;">이 계정 정보는 이 공유판 내부 접근을 위한 것이에요. 다른 곳과 같은 비밀번호는 피해주세요.</div>';
+    if(state.signupError) html += '<div class="err-msg">'+esc(state.signupError)+'</div>';
+    html += '<button class="btn btn-primary" id="signup-submit"'+(state.signupBusy?' disabled':'')+'>'+(state.signupBusy?'가입 중…':'가입하기')+'</button>';
+    return html;
+  }
+
+  function bindAuth(){
+    document.querySelectorAll('[data-mode]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.authMode = btn.getAttribute('data-mode');
+        state.loginError=''; state.signupError='';
+        render();
+      });
+    });
+    if(state.authMode==='signup'){ bindSignup(); } else { bindLoginPane(); }
+  }
+
+  function bindLoginPane(){
+    var resetBtn = document.getElementById('login-reset');
+    if(resetBtn) resetBtn.addEventListener('click', function(){
+      var email = normEmail(document.getElementById('li-email').value);
+      if(!email){ state.loginError='먼저 이메일을 입력한 뒤 눌러주세요.'; render(); return; }
+      state.resetBusy = true; state.loginError=''; state.resetMsg=''; render();
+      state.auth.sendReset(email).then(function(){
+        state.resetBusy = false;
+        // 가입되지 않은 주소인지 알려주면 계정 존재 여부가 새어나가니 똑같이 답해요.
+        state.resetMsg = esc(email)+' 로 비밀번호 재설정 메일을 보냈어요. 메일함을 확인해주세요.';
+        render();
+      }).catch(function(err){
+        state.resetBusy = false;
+        state.loginError = authMessage(err, '메일을 보내지 못했어요. 주소를 확인해주세요.');
+        render();
+      });
+    });
+
+    var submitBtn = document.getElementById('login-submit');
+    if(!submitBtn) return;
+    submitBtn.addEventListener('click', function(){
+      var email = normEmail(document.getElementById('li-email').value);
+      var password = document.getElementById('li-password').value;
+      if(!email){ state.loginError='이메일을 입력해주세요.'; render(); return; }
+      if(!password){ state.loginError='비밀번호를 입력해주세요.'; render(); return; }
+      state.loginBusy = true; state.loginError=''; state.resetMsg=''; state.authNotice=''; render();
+
+      // 로그인에 성공하면 인증 상태 변화가 알아서 계정을 붙여줘요.
+      state.auth.signIn(email, password).then(function(){
+        state.loginBusy = false;
+        render();
+      }).catch(function(err){
+        state.loginBusy = false;
+        state.loginError = authMessage(err, '로그인에 실패했어요. 다시 시도해주세요.');
+        render();
+      });
+    });
+  }
+
+  function bindSignup(){
+    var chk = document.getElementById('su-isadmin');
+    if(chk) chk.addEventListener('change', function(){ state.signupIsAdmin = chk.checked; render(); });
+
+    var submitBtn = document.getElementById('signup-submit');
+    if(!submitBtn) return;
+    submitBtn.addEventListener('click', function(){
+      var errEl = function(msg){ state.signupError = msg; state.signupBusy=false; render(); };
+      var name = document.getElementById('su-name').value.trim();
+      var email = document.getElementById('su-email').value.trim();
+      var emailLower = normEmail(email);
+      var phone = document.getElementById('su-phone').value.trim();
+      var password = document.getElementById('su-password').value;
+      var password2 = document.getElementById('su-password2').value;
+      var wantsAdmin = state.signupIsAdmin;
+
+      if(!name){ return errEl('이름을 입력해주세요.'); }
+      if(!emailLower || emailLower.indexOf('@')<0){ return errEl('올바른 이메일 주소를 입력해주세요.'); }
+      if(password.length < MIN_PW){ return errEl('비밀번호는 '+MIN_PW+'자 이상이어야 해요.'); }
+      if(password !== password2){ return errEl('비밀번호가 일치하지 않아요.'); }
+
+      var orgName = '';
+      var adminEmailInput = '';
+      if(wantsAdmin){
+        orgName = document.getElementById('su-orgname').value.trim();
+        if(!orgName){ return errEl('센터 이름을 입력해주세요.'); }
+      } else {
+        adminEmailInput = normEmail(document.getElementById('su-adminemail').value);
+        if(!adminEmailInput){ return errEl('관리자 이메일을 입력해주세요.'); }
+      }
+
+      state.signupBusy = true; state.signupError=''; render();
+      var db = state.db;
+
+      // 인증 계정을 먼저 만들어요. 로그인된 상태가 되어야 조직을 조회할 수
+      // 있고, 계정 문서 id를 인증 uid와 맞춰야 보안 규칙이 본인을 알아봐요.
+      // 그 사이 인증 변화가 리스너를 붙이지 못하도록 잠가둡니다.
+      signupInProgress = true;
+      var uid = null;
+
+      state.auth.signUp(emailLower, password).then(function(newUid){
+        uid = newUid;
+        if(wantsAdmin){
+          return db.doc('accounts/'+uid).set({
+            role:'admin', name:name, email:email, emailLower:emailLower, phone:phone,
+            orgName:orgName, createdAt:new Date().toISOString()
+          });
+        }
+        return db.collection('accounts').where('emailLower','==',adminEmailInput).limit(1).get().then(function(qs){
+          if(qs.empty || qs.docs[0].data().role !== 'admin'){ throw {code:'no-admin'}; }
+          return qs.docs[0].id;
+        }).then(function(orgId){
+          return db.collection('accounts').where('orgId','==',orgId).get().then(function(memberQs){
+            return db.doc('accounts/'+uid).set({
+              role:'member', name:name, email:email, emailLower:emailLower, phone:phone,
+              orgId:orgId, position:'', job:'', duties:'', manageSchedule:false, active:true,
+              order: memberQs.size, colorIndex: memberQs.size % TAG_COUNT,
+              joinedAt:new Date().toISOString()
+            });
+          });
+        });
+      }).then(function(){
+        state.signupBusy = false;
+        loginWithAccountId(uid);
+      }).catch(function(err){
+        signupInProgress = false;
+        var code = err && err.code;
+        // 관리자 이메일이 틀렸다면 방금 만든 인증 계정은 쓸모가 없으니 지워요.
+        // 안 그러면 그 이메일로 다시 가입할 수 없게 됩니다.
+        var cleanup = (uid && code === 'no-admin')
+          ? state.auth.deleteCurrentUser().catch(function(){})
+          : Promise.resolve();
+        cleanup.then(function(){
+          errEl(
+            code==='no-admin' ? '해당 이메일의 관리자를 찾을 수 없어요. 이메일을 다시 확인해주세요.'
+              : authMessage(err, '가입에 실패했어요. 다시 시도해주세요.')
+          );
+        });
+      });
+    });
+  }
+
+  /* ---------------- 확인창 ---------------- */
+  // window.confirm() is blocked inside the artifact's sandboxed frame — it
+  // returns false without ever showing anything, which silently swallowed
+  // every delete. Everything destructive goes through this in-app dialog.
+  function askConfirm(opts){
+    state.confirmBox = {
+      title: opts.title || '확인',
+      message: opts.message || '',
+      okLabel: opts.okLabel || '삭제',
+      danger: opts.danger !== false,
+      onOk: opts.onOk
+    };
+    render();
+  }
+
+  function tplConfirm(){
+    var c = state.confirmBox;
+    if(!c) return '';
+    var html = '<div class="overlay overlay-top" id="confirm-overlay"><div class="modal" style="max-width:380px;">';
+    html += '<div class="modal-head"><h3>'+esc(c.title)+'</h3><button class="modal-close" id="confirm-close">&times;</button></div>';
+    html += '<p class="confirm-msg">'+esc(c.message)+'</p>';
+    html += '<div class="modal-actions">';
+    html += '<button class="btn btn-line btn-grow" id="confirm-cancel">취소</button>';
+    html += '<button class="btn '+(c.danger?'btn-danger':'btn-primary')+'" id="confirm-ok">'+esc(c.okLabel)+'</button>';
+    html += '</div></div></div>';
+    return html;
+  }
+
+  function bindConfirm(){
+    var overlay = document.getElementById('confirm-overlay');
+    if(!overlay) return;
+    var box = state.confirmBox;
+    var close = function(){ state.confirmBox = null; render(); };
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) close(); });
+    ['confirm-close','confirm-cancel'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.addEventListener('click', close);
+    });
+    var ok = document.getElementById('confirm-ok');
+    if(ok) ok.addEventListener('click', function(){
+      state.confirmBox = null;
+      render();
+      if(box && box.onOk) box.onOk();
+    });
+  }
+
+  /* ---------------- templates: main app shell ---------------- */
+  function tplApp(){
+    var admin = isAdmin();
+    var meName = state.account.name;
+    var initials = meName ? meName.slice(0,1) : '?';
+    var orgInfo = orgAdminInfo();
+    var orgName = (orgInfo && orgInfo.orgName) || '조직 정보 없음';
+
+    var html = '<div class="wrap">';
+
+    html += '<div class="topbar">';
+    html += '<div class="whoami"><div class="avatar">'+esc(initials)+'</div><div>';
+    html += '<div style="font-weight:700;">'+esc(meName)+'</div>';
+    var roleLabel = admin ? '관리자' : (canManageSchedule() ? '구성원 · 일정 관리' : '구성원');
+    html += '<span class="role-badge">'+roleLabel+' · '+esc(orgName)+'</span>';
+    html += '</div></div>';
+    html += '<button class="hamburger-btn" id="menu-btn" aria-label="메뉴"><span></span><span></span><span></span></button>';
+    html += '</div>';
+
+    if(state.panel === 'orgchart'){
+      html += tplOrgChart();
+      if(admin && state.orgPopupId){ html += tplOrgPopup(memberById(state.orgPopupId)); }
+      if(admin && state.jobColorPick){ html += tplJobColorModal(state.jobColorPick); }
+    } else if(state.panel === 'boards'){
+      html += tplBoardsPanel();
+      if(state.postEdit) html += tplPostEditModal(state.postEdit);
+      if(admin && state.boardEdit) html += tplBoardEditModal(state.boardEdit);
+    } else if(state.panel === 'clients'){
+      html += tplClientsPanel();
+      if(canManageSchedule() && state.clientEdit) html += tplClientEditModal(state.clientEdit);
+    } else if(state.panel === 'settings' && admin){
+      html += tplSettingsPanel();
+    } else {
+      html += tplCalendarPanel();
+    }
+
+    if(state.menuOpen){ html += tplDrawer(); }
+    if(state.clientView) html += tplClientView(clientById(state.clientView));
+    html += tplConfirm();   // sits above every other overlay
+    if(state.toast) html += '<div class="toast">'+esc(state.toast)+'</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  function tplDrawer(){
+    var admin = isAdmin();
+    var html = '<div class="drawer-overlay" id="drawer-overlay"><div class="drawer">';
+    html += '<div class="drawer-head"><h3>메뉴</h3><button class="modal-close" id="drawer-close">&times;</button></div>';
+    html += '<button class="drawer-item'+(state.panel==='calendar'?' active':'')+'" data-goto="calendar">달력</button>';
+    html += '<button class="drawer-item'+(state.panel==='orgchart'?' active':'')+'" data-goto="orgchart">조직도</button>';
+    html += '<button class="drawer-item'+(state.panel==='clients'?' active':'')+'" data-goto="clients">회원 관리</button>';
+    html += '<button class="drawer-item'+(state.panel==='boards'?' active':'')+'" data-goto="boards">게시판</button>';
+    if(admin){
+      html += '<button class="drawer-item'+(state.panel==='settings'?' active':'')+'" data-goto="settings">상담센터 설정</button>';
+    }
+    html += '<div class="drawer-sep"></div>';
+    html += '<button class="drawer-item danger" id="drawer-logout">로그아웃</button>';
+    html += '</div></div>';
+    return html;
+  }
+
+  /* ---------------- templates: calendar panel ---------------- */
+  function tplCalendarPanel(){
+    var admin = canManageSchedule();
+    var y = state.view.year, m = state.view.month;
+    var html = '';
+
+    html += '<div class="monthbar"><h2>'+y+'년 '+(m+1)+'월</h2><div class="nav-group">';
+    html += '<button class="nav-btn" id="prev-month">‹</button>';
+    html += '<button class="btn btn-line btn-sm" id="today-btn">오늘</button>';
+    html += '<button class="nav-btn" id="next-month">›</button>';
+    html += '</div></div>';
+
+    if(admin && state.members.length>0){
+      html += '<div class="modebar"><span class="modebar-label">색상 기준</span><div class="segmented">';
+      html += '<button class="seg'+(state.colorMode==='job'?' active':'')+'" data-colormode="job">직무</button>';
+      html += '<button class="seg'+(state.colorMode==='person'?' active':'')+'" data-colormode="person">사람</button>';
+      html += '</div></div>';
+
+      html += '<div class="chiprow">';
+      if(state.colorMode==='job'){
+        html += '<button class="chip'+(state.adminJobFilter?'':' active')+'" data-jobfilter="">전체</button>';
+        orgJobList().forEach(function(j){
+          var ci = jobColorIndex(j);
+          var isActive = state.adminJobFilter===jobKey(j);
+          html += '<button class="chip'+(isActive?' active':'')+'" style="'+(isActive?('--tag-soft:var(--tag-'+ci+'-soft)'):'')+'" data-jobfilter="'+esc(j)+'"><span class="dot" style="background:var(--tag-'+ci+')"></span>'+esc(j)+'</button>';
+        });
+        var hasUnassigned = state.members.some(function(c){ return !jobOf(c); });
+        if(hasUnassigned){
+          var isNone = state.adminJobFilter===NO_JOB;
+          html += '<button class="chip'+(isNone?' active':'')+'" data-jobfilter="'+NO_JOB+'"><span class="dot" style="background:var(--line-strong)"></span>직무 미지정</button>';
+        }
+      } else {
+        html += '<button class="chip'+(state.adminFilter?'':' active')+'" data-filter="">전체</button>';
+        state.members.forEach(function(c){
+          var ci = colorIndexFor(c);
+          var isActive = state.adminFilter===c.id;
+          html += '<button class="chip'+(isActive?' active':'')+'" style="'+(isActive?('--tag-soft:var(--tag-'+ci+'-soft)'):'')+'" data-filter="'+esc(c.id)+'"><span class="dot" style="background:var(--tag-'+ci+')"></span>'+esc(c.name)+'</button>';
+        });
+      }
+      html += '</div>';
+    }
+
+    if(state.entriesError){
+      html += '<div class="note-msg" style="border-color:var(--danger);color:var(--danger);">일정을 불러오지 못했어요 ('+esc(state.entriesError)+'). 새로고침해도 같으면 알려주세요 — 저장된 일정은 사라지지 않았어요.</div>';
+    }
+    html += tplSummary();
+    html += tplCalendar(y,m);
+
+    if(state.dayModal){ html += tplDayModal(state.dayModal); }
+    if(state.editEntry){ html += tplEditModal(state.editEntry); }
+
+    return html;
+  }
+
+  function tplSummary(){
+    var y = state.view.year, m = state.view.month;
+    var prefix = y+'-'+pad2(m+1);
+    var inMonth = visibleEntries().filter(function(e){ return (e.date||'').indexOf(prefix)===0; });
+    var upcoming = visibleEntries().filter(function(e){ return e.date >= todayStr(); }).length;
+    var todays = visibleEntries().filter(function(e){ return e.date===todayStr(); }).length;
+
+    var html = '<div class="summary-strip">';
+    html += '<div class="summary-tile"><div class="num">'+inMonth.length+'</div><div class="lbl">이번 달 일정</div></div>';
+    html += '<div class="summary-tile"><div class="num">'+todays+'</div><div class="lbl">오늘 일정</div></div>';
+    html += '<div class="summary-tile"><div class="num">'+upcoming+'</div><div class="lbl">예정된 일정</div></div>';
+    if(canManageSchedule()){
+      html += '<div class="summary-tile"><div class="num">'+state.members.filter(function(c){return c.active!==false;}).length+'</div><div class="lbl">등록 구성원</div></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function tplCalendar(y, m){
+    var firstDow = new Date(y, m, 1).getDay();
+    var daysInMonth = new Date(y, m+1, 0).getDate();
+    var daysInPrev = new Date(y, m, 0).getDate();
+    var cells = [];
+    for(var i=0;i<firstDow;i++){
+      var pd = daysInPrev - firstDow + 1 + i;
+      cells.push({ day: pd, out:true, dateStr: null });
+    }
+    for(var d=1; d<=daysInMonth; d++){
+      cells.push({ day:d, out:false, dateStr: fmtDate(y,m,d) });
+    }
+    while(cells.length % 7 !== 0 || cells.length < 42){
+      var nd = cells.length - (firstDow + daysInMonth) + 1;
+      cells.push({ day: nd, out:true, dateStr:null });
+      if(cells.length>=42) break;
+    }
+
+    var html = '<div class="cal-grid">';
+    DOW.forEach(function(d, i){
+      html += '<div class="cal-dow'+(i===0?' sun':(i===6?' sat':''))+'">'+d+'</div>';
+    });
+    var tStr = todayStr();
+    cells.forEach(function(c, i){
+      var dow = i % 7;
+      if(c.out){
+        html += '<div class="cal-cell out"><span class="cal-daynum">'+c.day+'</span></div>';
+        return;
+      }
+      var isToday = c.dateStr === tStr;
+      var hol = holidayOf(c.dateStr);
+      var dayEntries = entriesOnDate(c.dateStr);
+      var cls = 'cal-cell';
+      if(isToday) cls += ' today';
+      if(hol || dow === 0) cls += ' sun';        // 공휴일과 일요일은 빨강
+      else if(dow === 6) cls += ' sat';
+      html += '<button class="'+cls+'" data-day="'+c.dateStr+'">';
+      html += '<span class="cal-daynum">'+c.day+'</span>';
+      if(hol) html += '<span class="cal-holiday">'+esc(hol)+'</span>';
+      html += '<span class="cal-entries">';
+      if(dayEntries.length <= NAME_CHIP_MAX){
+        // 한산한 날은 누가 오는지 한 줄씩 — 이름 + 회차(동그라미 숫자)
+        dayEntries.forEach(function(e){
+          var idx = colorIndexFor(memberById(e.counselorId));
+          var sn = sessionOf(e);
+          html += '<span class="cal-chip" style="--tag:var(--tag-'+idx+');--tag-soft:var(--tag-'+idx+'-soft)">' +
+            (e.start ? '<span class="cal-chip-time">'+esc(e.start)+'</span>' : '') +
+            '<span class="cal-chip-name">'+esc(e.title||'상담')+'</span>' +
+            (sn ? '<span class="cal-n">'+sn.n+'</span>' : '') +
+            '</span>';
+        });
+      } else {
+        // 바쁜 날은 이름을 다 적으면 읽히지 않으니 상담사별 인원으로 요약
+        var byC = {}, order = [];
+        dayEntries.forEach(function(e){
+          var k = e.counselorId || '_';
+          if(!byC[k]){
+            byC[k] = { n:0, name:(memberById(e.counselorId)||{}).name || e.counselorName || '기타',
+                       color: colorIndexFor(memberById(e.counselorId)) };
+            order.push(k);
+          }
+          byC[k].n++;
+        });
+        var groups = order.map(function(k){ return byC[k]; }).sort(function(a,b){ return b.n - a.n; });
+        html += '<span class="cal-total">'+dayEntries.length+'건</span>';
+        groups.slice(0, SUM_ROW_MAX).forEach(function(g){
+          html += '<span class="cal-sum" style="color:var(--tag-'+g.color+')">' +
+            '<span class="cal-sum-name">'+esc(g.name)+'</span>' +
+            '<span class="cal-sum-n">'+g.n+'</span></span>';
+        });
+        if(groups.length > SUM_ROW_MAX){
+          html += '<span class="cal-more">외 '+(groups.length-SUM_ROW_MAX)+'명</span>';
+        }
+      }
+      html += '</span></button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function tplDayModal(dateStr){
+    var list = entriesOnDate(dateStr);
+    var admin = canManageSchedule();
+    var html = '<div class="overlay" id="day-overlay"><div class="modal">';
+    var dayHol = holidayOf(dateStr);
+    html += '<div class="modal-head"><h3>'+dateStr+(dayHol?'<span class="holiday-tag">'+esc(dayHol)+'</span>':'')+'</h3><button class="modal-close" id="day-close">&times;</button></div>';
+    if(list.length===0){ html += '<div class="empty-note">등록된 일정이 없어요.</div>'; }
+    list.forEach(function(e){
+      var idx = colorIndexFor(memberById(e.counselorId));
+      var canEdit = admin || e.counselorId === state.account.id;
+      html += '<div class="day-entry">';
+      html += '<span class="dot" style="background:var(--tag-'+idx+')"></span>';
+      html += '<div><div class="time">'+esc(e.start||'')+(e.end?(' – '+esc(e.end)):'')+'</div>';
+      var sn = sessionOf(e);
+      var cl = clientForEntry(e);
+      html += '<div class="title">'+esc(e.title||'상담')+
+        (cl?'<button class="client-info-btn" data-clientinfo="'+esc(cl.id)+'" title="내담자 정보">i</button>':'')+
+        (sn?'<span class="session-badge">'+sn.n+'회차</span>':'')+'</div>';
+      if(admin) html += '<div class="who">'+esc(e.counselorName||'')+'</div>';
+      if(e.memo) html += '<div class="memo">'+esc(e.memo)+'</div>';
+      html += '</div>';
+      if(canEdit){
+        html += '<div class="day-entry-actions">';
+        html += '<button class="icon-btn" data-edit="'+esc(e.id)+'" title="수정">✎</button>';
+        html += '<button class="icon-btn" data-del="'+esc(e.id)+'" title="삭제">🗑</button>';
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '<button class="btn btn-primary" id="day-add">+ 새 일정 추가</button>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function tplEditModal(entry){
+    var admin = canManageSchedule();
+    var isNew = !entry.id;
+    var memberOptions = '';
+    if(admin){
+      state.members.filter(function(c){return c.active!==false;}).forEach(function(c){
+        memberOptions += '<option value="'+esc(c.id)+'"'+(entry.counselorId===c.id?' selected':'')+'>'+esc(c.name)+'</option>';
+      });
+    }
+    var html = '<div class="overlay" id="edit-overlay"><div class="modal">';
+    html += '<div class="modal-head"><h3>'+(isNew?'새 일정':'일정 수정')+'</h3><button class="modal-close" id="edit-close">&times;</button></div>';
+
+    if(admin){
+      html += '<div class="field"><label>구성원</label><select id="ef-counselor">'+memberOptions+'</select></div>';
+    }
+    html += '<div class="field"><label for="ef-title">제목 / 내담자</label>' +
+      '<div class="ac-wrap"><input id="ef-title" autocomplete="off" placeholder="내담자 이름" value="'+esc(entry.title||'')+'"/>' +
+      '<div class="ac-list" id="ef-title-ac" hidden></div></div>';
+    var linked = clientForEntry(entry);
+    html += '<div class="hint">'+(linked
+      ? '등록된 내담자 <b>'+esc(linked.name)+'</b> 정보와 연결돼요.'
+      : '회원 관리에 등록된 이름을 입력하면 내담자 정보와 자동으로 연결돼요.')+'</div>';
+    html += '</div>';
+    html += '<div class="field"><label for="ef-date">날짜</label><input type="date" id="ef-date" value="'+esc(entry.date||'')+'"/></div>';
+
+    if(isNew){
+      html += '<div class="field"><label for="ef-repeat">반복 횟수</label><select id="ef-repeat">';
+      for(var r=1; r<=20; r++){
+        html += '<option value="'+r+'"'+(state.repeatCount===r?' selected':'')+'>'+r+'회</option>';
+      }
+      html += '</select><div class="hint">첫 일정을 포함한 전체 횟수예요.</div></div>';
+
+      if(state.repeatCount > 1){
+        html += '<div class="field"><label>반복 요일</label><div class="dow-row">';
+        DOW.forEach(function(d, i){
+          html += '<button type="button" class="dow-chip'+(state.repeatDows.indexOf(i)!==-1?' active':'')+'" data-dow="'+i+'">'+d+'</button>';
+        });
+        html += '</div>';
+        var dates = repeatDates(entry.date, state.repeatDows, state.repeatCount);
+        if(dates.length){
+          var head = dates.slice(0,3).map(shortDate).join(', ');
+          html += '<div class="hint">'+esc(head)+(dates.length>3?' … ':' ')+'총 '+dates.length+'회, 마지막 '+esc(shortDate(dates[dates.length-1]))+'</div>';
+        } else {
+          html += '<div class="hint">요일을 하나 이상 선택해주세요.</div>';
+        }
+        html += '</div>';
+      }
+    }
+
+    var startHM = snapHM(entry.start, '10:00');
+    var durVal = null;
+    var endMin = hmToMin(entry.end);
+    var startMin = hmToMin(startHM);
+    if(endMin !== null && startMin !== null){
+      var diff = endMin - startMin;
+      if(diff < 0) diff += 1440;
+      durVal = diff;
+    }
+    if(durVal === null) durVal = 50;
+    var endHM = (entry.end && endMin !== null) ? snapHM(entry.end, '10:50') : minToHM(startMin + durVal);
+    var durIsPreset = DURATIONS.indexOf(durVal) !== -1;
+
+    html += '<div class="form-row">';
+    html += '<div class="field"><label>시작 시간</label><div class="hm-group">' +
+      tplTimeSelect('ef-start-h', 'h', startHM) + '<span class="hm-colon">:</span>' + tplTimeSelect('ef-start-m', 'm', startHM) +
+      '</div></div>';
+    html += '<div class="field"><label for="ef-dur">소요 시간</label><select id="ef-dur">';
+    DURATIONS.forEach(function(d){
+      html += '<option value="'+d+'"'+(durIsPreset && d===durVal?' selected':'')+'>'+d+'분</option>';
+    });
+    html += '<option value="custom"'+(durIsPreset?'':' selected')+'>직접 지정</option>';
+    html += '</select></div>';
+    html += '</div>';
+
+    html += '<div class="field"><label>종료 시간</label><div class="hm-group" style="max-width:200px;">' +
+      tplTimeSelect('ef-end-h', 'h', endHM) + '<span class="hm-colon">:</span>' + tplTimeSelect('ef-end-m', 'm', endHM) +
+      '</div><div class="hint">소요 시간을 고르면 종료 시간이 자동으로 맞춰져요.</div></div>';
+
+    html += '<div class="field"><label for="ef-memo">메모</label><input id="ef-memo" placeholder="선택 사항" value="'+esc(entry.memo||'')+'"/></div>';
+
+    if(!isNew){
+      var sn = sessionOf(entry);
+      var notes = [];
+      if(sn) notes.push(esc(entry.title)+' 내담자의 '+sn.n+'번째 상담이에요 (지금까지 '+sn.total+'회 등록).');
+      if(entry.seriesId){
+        var siblings = state.entries.filter(function(e){ return e.seriesId===entry.seriesId; }).length;
+        notes.push('반복으로 만든 '+siblings+'회 중 하나예요. 여기서 고치면 이 회차만 바뀌어요.');
+      }
+      if(notes.length) html += '<div class="note-msg">'+notes.join('<br>')+'</div>';
+    }
+
+    html += '<div id="edit-err" class="err-msg" hidden></div>';
+    html += '<div class="modal-actions">';
+    if(!isNew) html += '<button class="btn btn-danger" id="edit-delete">삭제</button>';
+    if(!isNew && entry.seriesId) html += '<button class="btn btn-danger" id="edit-delete-series">반복 전체 삭제</button>';
+    html += '<button class="btn btn-primary" id="edit-save">저장</button>';
+    html += '</div></div></div>';
+    return html;
+  }
+
+  // A dropdown of hours (00–23) or minutes in 5-minute steps — deliberately
+  // not <input type="time">, which opens a clock picker on mobile.
+  function tplTimeSelect(id, part, hm){
+    var cur = String(hm||'').split(':');
+    var sel = part === 'h' ? (cur[0]||'10') : (cur[1]||'00');
+    var html = '<select id="'+id+'">';
+    if(part === 'h'){
+      for(var h=0; h<24; h++){
+        var hv = pad2(h);
+        html += '<option value="'+hv+'"'+(hv===sel?' selected':'')+'>'+hv+'</option>';
+      }
+    } else {
+      for(var m=0; m<60; m+=5){
+        var mv = pad2(m);
+        html += '<option value="'+mv+'"'+(mv===sel?' selected':'')+'>'+mv+'</option>';
+      }
+    }
+    return html + '</select>';
+  }
+
+  /* ---------------- templates: org chart ---------------- */
+  function tplOrgChart(){
+    var admin = isAdmin();
+    var org = orgAdminInfo();
+    var adminName = (org && org.name) || '관리자';
+
+    var html = '<div class="page-head"><h2>조직도</h2><p class="muted small" style="margin-top:4px;">'+
+      (admin ? '카드를 누르면 가입 정보를 보고 포지션·직무를 정할 수 있어요. 같은 직무끼리 자동으로 묶여요.' : '우리 조직 구성원이에요. 직무별로 묶여 있어요.') + '</p></div>';
+
+    if(!org){
+      html += '<div class="empty-note">조직 정보를 불러올 수 없어요.</div>';
+    } else {
+      html += '<div class="org-admin-card"><div class="avatar">'+esc(adminName.slice(0,1))+'</div><div>';
+      html += '<div style="font-weight:700;">'+esc(adminName)+'</div>';
+      html += '<div class="org-position" style="margin-top:3px;">대표관리자</div>';
+      html += '</div></div>';
+    }
+    html += '<div class="org-connector"></div>';
+
+    if(state.members.length===0){
+      html += '<div class="empty-note">아직 가입한 구성원이 없어요.</div>';
+    }
+    groupedMembers().forEach(function(g){
+      html += '<div class="org-group">';
+      html += '<div class="org-group-head">';
+      if(g.name){
+        var gci = jobColorIndex(g.name);
+        html += admin
+          ? '<button class="job-swatch" data-jobcolor="'+esc(g.name)+'" style="background:var(--tag-'+gci+')" title="직무 색상 바꾸기"></button>'
+          : '<span class="job-swatch" style="background:var(--tag-'+gci+')"></span>';
+      }
+      html += '<span class="org-group-name'+(g.name?'':' unset')+'">'+esc(g.name || '직무 미지정')+'</span>';
+      html += '<span class="org-group-count">'+g.members.length+'명</span>';
+      html += '<span class="org-group-rule"></span>';
+      html += '</div>';
+      html += '<div class="org-grid">';
+      g.members.forEach(function(c){ html += tplOrgCard(c, admin); });
+      html += '</div></div>';
+    });
+
+    if(admin){
+      html += '<div class="section-head"><h3>구성원 직접 추가</h3><button class="btn btn-ghost btn-sm" id="toggle-addmember">'+(state.showAddMember?'닫기':'+ 추가')+'</button></div>';
+      if(state.showAddMember){
+        html += '<div class="addmember-card">';
+        html += '<div class="field"><label>이름</label><input id="am-name" placeholder="이름"/></div>';
+        html += '<div class="field"><label>이메일</label><input id="am-email" type="email" placeholder="로그인에 사용할 이메일"/></div>';
+        html += '<div class="field"><label>전화번호 (선택)</label><input id="am-phone" type="tel" placeholder="010-0000-0000"/></div>';
+        html += '<div class="field"><label>직무 (선택)</label>' +
+          '<div class="ac-wrap"><input id="am-job" autocomplete="off" placeholder="예: 상담, 심리검사"/>' +
+          '<div class="ac-list" id="am-job-ac" hidden></div></div></div>';
+        html += '<div class="field"><label>임시 비밀번호</label><input id="am-password" type="password" autocomplete="new-password" placeholder="'+MIN_PW+'자 이상"/>' +
+          '<div class="hint">추가한 구성원에게 이메일과 이 비밀번호를 전달해주세요.</div></div>';
+        html += '<div id="am-err" class="err-msg" hidden></div>';
+        html += '<button class="btn btn-primary" id="am-submit"'+(state.addMemberBusy?' disabled':'')+'>'+(state.addMemberBusy?'추가 중…':'추가')+'</button>';
+        html += '</div>';
+      }
+    }
+    return html;
+  }
+
+  function tplOrgCard(c, admin){
+    var idx = colorIndexFor(c);
+    var tag = admin ? 'button' : 'div';
+    var html = '<'+tag+' class="org-card"'+(admin?(' data-orgpopup="'+esc(c.id)+'"'):'')+'>';
+    html += '<div class="org-card-top"><span class="dot" style="background:var(--tag-'+idx+')"></span><span class="org-name">'+esc(c.name)+'</span>';
+    if(c.active===false) html += '<span class="badge-inactive">탈퇴</span>';
+    html += '</div>';
+    if(c.manageSchedule) html += '<span class="badge-manage">일정 관리 권한</span>';
+    html += '<span class="org-position'+(c.position?'':' unset')+'">'+esc(c.position||'포지션 미지정')+'</span>';
+    if(admin){ html += '<div class="org-meta">눌러서 가입 정보 보기 ›</div>'; }
+    html += '</'+tag+'>';
+    return html;
+  }
+
+  function tplJobColorModal(job){
+    var cur = jobColorIndex(job);
+    var html = '<div class="overlay" id="jobcolor-overlay"><div class="modal" style="max-width:380px;">';
+    html += '<div class="modal-head"><h3>'+esc(job)+' 색상</h3><button class="modal-close" id="jobcolor-close">&times;</button></div>';
+    html += '<p class="muted small" style="margin:-6px 0 0;">달력에서 이 직무의 일정이 고른 색으로 표시돼요.</p>';
+    html += '<div class="swatch-grid">';
+    for(var i=0;i<TAG_COUNT;i++){
+      html += '<button class="swatch'+(i===cur?' active':'')+'" data-pickcolor="'+i+'" style="background:var(--tag-'+i+')" aria-label="색상 '+(i+1)+'번"></button>';
+    }
+    html += '</div></div></div>';
+    return html;
+  }
+
+  // A suggestion list anchored right under the input. Native <datalist> puts
+  // its options in the keyboard strip on Android, far from the field, so this
+  // is built by hand. It never calls render(), so Korean IME composition in
+  // the input is never interrupted.
+  function attachAutocomplete(inputId, boxId, getItems, onPick){
+    var input = document.getElementById(inputId);
+    var box = document.getElementById(boxId);
+    if(!input || !box) return;
+
+    var close = function(){ box.hidden = true; box.innerHTML = ''; };
+    var open = function(){
+      var q = nameKey(input.value);
+      var seen = {}, items = [];
+      getItems().forEach(function(s){
+        var k = nameKey(s);
+        if(!k || seen[k]) return;
+        if(q && k.indexOf(q) === -1) return;
+        seen[k] = true;
+        if(items.length < 8) items.push(s);
+      });
+      if(!items.length || (items.length === 1 && nameKey(items[0]) === q)){ close(); return; }
+      box.innerHTML = '';
+      items.forEach(function(s){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ac-item';
+        b.textContent = s;
+        // mousedown would blur the input first and close the list before click
+        b.addEventListener('mousedown', function(ev){ ev.preventDefault(); });
+        b.addEventListener('click', function(){
+          input.value = s;
+          close();
+          if(onPick) onPick(s);
+        });
+        box.appendChild(b);
+      });
+      box.hidden = false;
+    };
+
+    input.addEventListener('focus', open);
+    input.addEventListener('input', open);
+    input.addEventListener('blur', function(){ setTimeout(close, 180); });
+    input.addEventListener('keydown', function(ev){ if(ev.key === 'Escape') close(); });
+  }
+
+  function tplOrgPopup(c){
+    if(!c) return '';
+    var html = '<div class="overlay" id="org-overlay"><div class="modal">';
+    html += '<div class="modal-head"><h3>'+esc(c.name)+'</h3><button class="modal-close" id="org-close">&times;</button></div>';
+
+    html += '<div class="info-block">';
+    html += '<div class="info-row"><span class="k">이메일</span><span class="v">'+esc(c.email||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">전화번호</span><span class="v">'+esc(c.phone||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">가입일</span><span class="v">'+esc(fmtDateOnly(c.joinedAt))+'</span></div>';
+    html += '<div class="info-row"><span class="k">상태</span><span class="v">'+(c.active===false?'탈퇴':'활동 중')+'</span></div>';
+    html += '</div>';
+
+    html += '<div class="field"><label>포지션 / 직책</label><input id="oe-position" placeholder="예: 수석상담사, 인턴상담사" value="'+esc(c.position||'')+'"/></div>';
+    html += '<div class="field"><label>직무</label>' +
+      '<div class="ac-wrap"><input id="oe-job" autocomplete="off" placeholder="예: 상담, 심리검사, 행정" value="'+esc(jobOf(c))+'"/>' +
+      '<div class="ac-list" id="oe-job-ac" hidden></div></div>' +
+      '<div class="hint">같은 직무를 입력한 구성원끼리 조직도에서 한 그룹으로 묶여요. 입력칸을 누르면 이미 쓰고 있는 직무가 추천돼요.</div></div>';
+    html += '<div class="form-check"><input type="checkbox" id="oe-manage"'+(c.manageSchedule?' checked':'')+'/>' +
+      '<label for="oe-manage">일정 관리 권한 주기' +
+      '<span class="check-sub">센터 전체 일정을 보고 모든 구성원의 일정을 입력·수정·삭제할 수 있어요. 조직도와 센터 설정은 관리자만 바꿀 수 있어요.</span></label></div>';
+
+    html += '<div class="field"><label>비밀번호</label>' +
+      '<button class="btn btn-line" id="org-sendreset" style="width:100%;margin-top:0;">비밀번호 재설정 메일 보내기</button>' +
+      '<div class="hint">'+esc(c.email||'이 구성원')+' 로 메일이 가고, 본인이 직접 새 비밀번호를 정해요. 관리자도 비밀번호를 볼 수 없어요.</div></div>';
+    if(state.orgResetMsg) html += '<div class="note-msg">'+esc(state.orgResetMsg)+'</div>';
+    html += '<div id="org-err" class="err-msg" hidden></div>';
+    if(c.active===false){
+      html += '<div class="note-msg">탈퇴 처리된 구성원이에요. 로그인할 수 없고 본인 일정도 볼 수 없어요. 그동안의 상담 기록은 이 화면에 남아있어요.</div>';
+    }
+    html += '<div class="modal-actions">';
+    html += '<button class="btn '+(c.active===false?'btn-line':'btn-ghost')+'" id="org-toggleactive">'+(c.active===false?'탈퇴 취소':'탈퇴 처리')+'</button>';
+    html += '<button class="btn btn-danger" id="org-delete">완전 삭제</button>';
+    html += '<button class="btn btn-primary" id="org-save">저장</button>';
+    html += '</div></div></div>';
+    return html;
+  }
+
+  /* ---------------- templates: 회원(내담자) 관리 ---------------- */
+  function clientsSorted(){
+    return state.clients.slice().sort(function(a,b){
+      return String(a.name||'').localeCompare(String(b.name||''), 'ko');
+    });
+  }
+  function clientSessionTotal(c){
+    if(!c) return 0;
+    var k = 'c:'+c.id;
+    var n = 0;
+    state.entries.forEach(function(e){ if(clientKey(e)===k) n++; });
+    return n;
+  }
+  function counselorNameOf(c){
+    var m = c && c.counselorId ? memberById(c.counselorId) : null;
+    return m ? m.name : '';
+  }
+
+  function tplClientsPanel(){
+    // Every card is rendered and the search box hides non-matches in place —
+    // re-rendering on each keystroke would tear down the focused input and
+    // break Korean IME composition mid-word.
+    var manage = canManageSchedule();
+    // A plain 구성원 only ever sees the 내담자 assigned to them, read-only.
+    var list = manage
+      ? clientsSorted()
+      : clientsSorted().filter(function(c){ return c.counselorId === state.account.id; });
+
+    var html = '<div class="page-head"><h2>회원 관리</h2>' +
+      '<p class="muted small" style="margin-top:4px;">' +
+      (manage ? '내담자 정보를 등록해두면 일정에 이름을 입력할 때 자동으로 연결돼요.'
+              : '나에게 배정된 내담자예요. 카드를 누르면 세부 정보를 볼 수 있어요.') +
+      '</p></div>';
+
+    html += '<div class="clients-bar">';
+    html += '<input id="client-search" placeholder="이름 · 보호자 · 연락처 검색" value="'+esc(state.clientSearch)+'"/>';
+    if(manage) html += '<button class="btn btn-primary btn-sm" id="client-add" style="margin-top:0;width:auto;flex:none;">+ 내담자 추가</button>';
+    html += '</div>';
+
+    if(!list.length){
+      html += '<div class="empty-note">'+(manage
+        ? '아직 등록된 내담자가 없어요. "내담자 추가"를 눌러 등록해보세요.'
+        : '나에게 배정된 내담자가 아직 없어요. 관리자에게 문의해주세요.')+'</div>';
+    }
+    html += '<div class="empty-note" id="client-none" hidden>검색 결과가 없어요.</div>';
+
+    // 구성원 화면은 담당이 본인 하나뿐이라 그룹 없이 목록만 보여줘요.
+    if(!manage){
+      html += '<div class="client-grid">';
+      list.forEach(function(c){ html += tplClientCard(c, false); });
+      html += '</div>';
+      return html;
+    }
+
+    // 관리자 화면은 달력과 같은 방식 — 전체 / 구성원별 칩으로 걸러봐요.
+    var known = {};
+    state.members.forEach(function(m){ known[m.id] = true; });
+    var unassigned = list.filter(function(c){ return !c.counselorId || !known[c.counselorId]; });
+
+    html += '<div class="chiprow">';
+    html += '<button class="chip'+(state.clientFilter?'':' active')+'" data-clientfilter="">전체 '+list.length+'</button>';
+    state.members.forEach(function(m){
+      var n = list.filter(function(c){ return c.counselorId === m.id; }).length;
+      if(!n) return;
+      var ci = colorIndexFor(m);
+      var on = state.clientFilter === m.id;
+      html += '<button class="chip'+(on?' active':'')+'" style="'+(on?('--tag-soft:var(--tag-'+ci+'-soft)'):'')+'" data-clientfilter="'+esc(m.id)+'">' +
+        '<span class="dot" style="background:var(--tag-'+ci+')"></span>'+esc(m.name)+' '+n+'</button>';
+    });
+    if(unassigned.length){
+      var onNone = state.clientFilter === NO_COUNSELOR;
+      html += '<button class="chip'+(onNone?' active':'')+'" data-clientfilter="'+NO_COUNSELOR+'">' +
+        '<span class="dot" style="background:var(--line-strong)"></span>담당 미지정 '+unassigned.length+'</button>';
+    }
+    html += '</div>';
+
+    var shown = list;
+    if(state.clientFilter === NO_COUNSELOR){
+      shown = unassigned;
+    } else if(state.clientFilter){
+      shown = list.filter(function(c){ return c.counselorId === state.clientFilter; });
+    }
+
+    html += '<div class="client-grid">';
+    shown.forEach(function(c){ html += tplClientCard(c, true); });
+    html += '</div>';
+    return html;
+  }
+
+  // `manage` decides where a tap goes: the edit form, or the read-only card.
+  function tplClientCard(c, manage){
+    var total = clientSessionTotal(c);
+    var action = manage ? 'data-clientedit="'+esc(c.id)+'"' : 'data-clientinfo="'+esc(c.id)+'"';
+    var html = '<button class="client-card" data-clientid="'+esc(c.id)+'" '+action+'>';
+    html += '<div class="client-card-top"><span class="client-name">'+esc(c.name||'이름 없음')+'</span>';
+    if(total) html += '<span class="session-badge">누적 '+total+'회</span>';
+    html += '</div>';
+    html += '<div class="client-meta">';
+    html += '<span>'+(c.birth ? esc(c.birth) : '<span class="faint">생년월일 미입력</span>')+'</span>';
+    if(c.guardian) html += '<span>보호자 '+esc(c.guardian)+'</span>';
+    if(c.phone) html += '<span>'+esc(c.phone)+'</span>';
+    html += '</div>';
+    html += '</button>';
+    return html;
+  }
+
+  function daysInMonth(y, m){ return new Date(y, m, 0).getDate(); }   // m: 1~12
+
+  // 생년월일도 달력 위젯 대신 네모 선택 박스로. 최근 연도가 위에 오게 해요.
+  function tplBirthSelects(birth){
+    var parts = String(birth||'').split('-');
+    var by = parts[0]||'', bm = parts[1]||'', bd = parts[2]||'';
+    var thisYear = today.getFullYear();
+
+    var html = '<select id="cl-birth-y"><option value="">년</option>';
+    for(var y = thisYear; y >= thisYear-100; y--){
+      html += '<option value="'+y+'"'+(String(y)===by?' selected':'')+'>'+y+'</option>';
+    }
+    html += '</select>';
+
+    html += '<select id="cl-birth-m"><option value="">월</option>';
+    for(var m = 1; m <= 12; m++){
+      html += '<option value="'+pad2(m)+'"'+(pad2(m)===bm?' selected':'')+'>'+m+'</option>';
+    }
+    html += '</select>';
+
+    var maxDay = (by && bm) ? daysInMonth(parseInt(by,10), parseInt(bm,10)) : 31;
+    html += '<select id="cl-birth-d"><option value="">일</option>';
+    for(var d = 1; d <= maxDay; d++){
+      html += '<option value="'+pad2(d)+'"'+(pad2(d)===bd?' selected':'')+'>'+d+'</option>';
+    }
+    html += '</select>';
+    return html;
+  }
+
+  function tplClientEditModal(c){
+    var isNew = !c.id;
+    var memberOptions = '<option value="">미지정</option>';
+    state.members.filter(function(m){ return m.active!==false; }).forEach(function(m){
+      memberOptions += '<option value="'+esc(m.id)+'"'+(c.counselorId===m.id?' selected':'')+'>'+esc(m.name)+'</option>';
+    });
+
+    var html = '<div class="overlay" id="client-overlay"><div class="modal">';
+    html += '<div class="modal-head"><h3>'+(isNew?'내담자 추가':'내담자 정보')+'</h3><button class="modal-close" id="client-close">&times;</button></div>';
+    html += '<div class="field"><label for="cl-name">내담자 이름</label><input id="cl-name" placeholder="이름" value="'+esc(c.name||'')+'"/></div>';
+    html += '<div class="field"><label>생년월일</label><div class="ymd-group">' +
+      tplBirthSelects(c.birth) + '</div></div>';
+    html += '<div class="field"><label for="cl-guardian">보호자 이름</label><input id="cl-guardian" placeholder="선택 사항" value="'+esc(c.guardian||'')+'"/></div>';
+    html += '<div class="field"><label for="cl-phone">연락처</label><input id="cl-phone" type="tel" placeholder="010-0000-0000" value="'+esc(c.phone||'')+'"/></div>';
+    html += '<div class="field"><label for="cl-email">메일 주소</label><input id="cl-email" type="email" placeholder="선택 사항" value="'+esc(c.email||'')+'"/></div>';
+    html += '<div class="field"><label for="cl-counselor">담당 상담사</label><select id="cl-counselor">'+memberOptions+'</select></div>';
+    html += '<div class="field"><label for="cl-memo">메모</label><textarea id="cl-memo" rows="4" placeholder="상담 특이사항, 주의할 점 등">'+esc(c.memo||'')+'</textarea></div>';
+    if(state.clientError) html += '<div class="err-msg">'+esc(state.clientError)+'</div>';
+    html += '<div class="modal-actions">';
+    if(!isNew) html += '<button class="btn btn-danger" id="client-delete">삭제</button>';
+    html += '<button class="btn btn-primary" id="client-save"'+(state.clientBusy?' disabled':'')+'>'+(state.clientBusy?'저장 중…':'저장')+'</button>';
+    html += '</div></div></div>';
+    return html;
+  }
+
+  // Read-only card opened from a schedule entry.
+  function tplClientView(c){
+    if(!c) return '';
+    var total = clientSessionTotal(c);
+    var cn = counselorNameOf(c);
+    var html = '<div class="overlay overlay-top" id="clientview-overlay"><div class="modal" style="max-width:420px;">';
+    html += '<div class="modal-head"><h3>'+esc(c.name||'내담자')+'</h3><button class="modal-close" id="clientview-close">&times;</button></div>';
+    html += '<div class="info-block">';
+    html += '<div class="info-row"><span class="k">생년월일</span><span class="v">'+esc(c.birth||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">보호자</span><span class="v">'+esc(c.guardian||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">연락처</span><span class="v">'+esc(c.phone||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">메일</span><span class="v">'+esc(c.email||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">담당 상담사</span><span class="v">'+esc(cn||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">누적 상담</span><span class="v">'+total+'회</span></div>';
+    html += '</div>';
+    if(c.memo){
+      html += '<div class="field"><label>메모</label><div class="memo-box">'+esc(c.memo)+'</div></div>';
+    }
+    if(canManageSchedule()){
+      html += '<div class="modal-actions"><button class="btn btn-line btn-grow" id="clientview-edit">정보 수정</button></div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  /* ---------------- templates: 게시판 ---------------- */
+  function boardById(id){
+    for(var i=0;i<state.boards.length;i++) if(state.boards[i].id===id) return state.boards[i];
+    return null;
+  }
+  function postById(id){
+    for(var i=0;i<state.posts.length;i++) if(state.posts[i].id===id) return state.posts[i];
+    return null;
+  }
+  // 관리자가 정한 순서(order)를 따르고, 아직 순서가 없는 예전 게시판은
+  // 만들어진 순으로 뒤에 붙어요. 한 번 순서를 바꾸면 전부 정리돼요.
+  function boardsSorted(){
+    return state.boards.slice().sort(function(a,b){
+      var ao = typeof a.order === 'number' ? a.order : 99999;
+      var bo = typeof b.order === 'number' ? b.order : 99999;
+      if(ao !== bo) return ao - bo;
+      return String(a.createdAt||'').localeCompare(String(b.createdAt||''));
+    });
+  }
+
+  function moveBoard(id, dir){
+    var list = boardsSorted();
+    var i = -1;
+    for(var k=0;k<list.length;k++) if(list[k].id===id){ i = k; break; }
+    var j = i + dir;
+    if(i < 0 || j < 0 || j >= list.length) return;
+    var swap = list[i]; list[i] = list[j]; list[j] = swap;
+
+    // Write the normalised positions one at a time — only the rows that
+    // actually moved, which also backfills any board created before ordering.
+    var chain = Promise.resolve();
+    list.forEach(function(b, idx){
+      if(b.order !== idx){
+        chain = chain.then(function(){
+          return state.db.collection('boards').doc(b.id).update({ order: idx });
+        });
+      }
+    });
+    chain.catch(function(){});
+  }
+
+  var PIN_LIMIT = 5;          // 게시판당 상단 고정 글 최대 개수
+  var NAME_CHIP_MAX = 4;      // 이날까지는 이름으로, 넘으면 상담사별 인원 요약으로
+  var SUM_ROW_MAX = 4;        // 요약에서 보여줄 상담사 줄 수
+
+  function postsOfBoard(boardId){
+    var all = state.posts.filter(function(p){ return p.boardId===boardId; });
+    var byNewest = function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); };
+    // 최근에 고정한 글이 위로 — 5개를 넘길 때 밀려나는 순서와 같은 기준이에요.
+    var pinned = all.filter(function(p){ return !!p.pinned; })
+      .sort(function(a,b){ return String(b.pinnedAt||'').localeCompare(String(a.pinnedAt||'')); });
+    var rest = all.filter(function(p){ return !p.pinned; }).sort(byNewest);
+    return pinned.concat(rest);
+  }
+  // 게시판 목록의 "최근"은 고정과 무관하게 가장 나중에 올라온 글 기준이에요.
+  function latestPostOf(boardId){
+    return state.posts.filter(function(p){ return p.boardId===boardId; })
+      .sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); })[0];
+  }
+  function pinnedOfBoard(boardId){
+    return state.posts.filter(function(p){ return p.boardId===boardId && p.pinned; })
+      .sort(function(a,b){ return String(a.pinnedAt||'').localeCompare(String(b.pinnedAt||'')); });  // 오래된 순
+  }
+  // 글쓰기 제한이 걸린 게시판(공지사항 등)은 관리자와 권한 있는 구성원만 써요.
+  function canWriteBoard(b){ return !!b && (!b.writeRestricted || canManageSchedule()); }
+  function canEditPost(p){
+    if(!p || !state.account) return false;
+    return p.authorId === state.account.id || canManageSchedule();
+  }
+  function fmtDateTime(iso){
+    if(!iso) return '';
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return String(iso).slice(0,10);
+    return (d.getMonth()+1)+'/'+d.getDate()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
+  }
+
+  function tplBoardsPanel(){
+    if(state.postId){
+      var p = postById(state.postId);
+      if(p) return tplPostView(p);
+      state.postId = null;
+    }
+    if(state.boardId){
+      var b = boardById(state.boardId);
+      if(b) return tplBoardView(b);
+      state.boardId = null;
+    }
+    return tplBoardIndex();
+  }
+
+  function tplBoardIndex(){
+    var admin = isAdmin();
+    var html = '<div class="page-head"><h2>게시판</h2>' +
+      '<p class="muted small" style="margin-top:4px;">센터 구성원이 함께 보는 게시판이에요.</p></div>';
+
+    if(admin){
+      html += '<div class="clients-bar"><div style="flex:1;"></div>';
+      if(state.boardReorder){
+        html += '<button class="btn btn-primary btn-sm" id="board-reorder-done" style="margin-top:0;width:auto;flex:none;">순서 편집 완료</button>';
+      } else {
+        if(state.boards.length > 1){
+          html += '<button class="btn btn-ghost btn-sm" id="board-reorder" style="margin-top:0;width:auto;flex:none;">↕ 순서 편집</button>';
+        }
+        html += '<button class="btn btn-primary btn-sm" id="board-add" style="margin-top:0;width:auto;flex:none;">+ 게시판 만들기</button>';
+      }
+      html += '</div>';
+    }
+
+    if(!state.boards.length){
+      html += '<div class="empty-note">'+(admin
+        ? '아직 게시판이 없어요. "게시판 만들기"로 공지사항·의견게시판 등을 만들어보세요.'
+        : '아직 게시판이 없어요. 관리자가 만들면 여기에 보여요.')+'</div>';
+      return html;
+    }
+
+    var list = boardsSorted();
+    var reordering = admin && state.boardReorder;
+    if(reordering){
+      html += '<div class="note-msg" style="margin-top:0;">▲▼ 로 순서를 바꾼 뒤 "순서 편집 완료"를 눌러주세요. 순서는 모든 구성원에게 똑같이 보여요.</div>';
+    }
+
+    html += '<div class="board-list">';
+    list.forEach(function(b, i){
+      var posts = postsOfBoard(b.id);
+      var last = latestPostOf(b.id);
+      // While reordering the card is inert, so a tap can't open a board by accident.
+      var tag = reordering ? 'div' : 'button';
+      html += '<div class="board-row">';
+      html += '<'+tag+' class="board-card'+(reordering?' inert':'')+'"'+(reordering?'':' data-boardopen="'+esc(b.id)+'"')+'>';
+      html += '<div class="board-card-top"><span class="board-name">'+esc(b.name)+'</span>';
+      if(b.writeRestricted) html += '<span class="badge-lock">관리자 전용</span>';
+      html += '</div>';
+      html += '<div class="board-meta">글 '+posts.length+'개' +
+        (last ? ' · 최근 '+esc(fmtDateTime(last.createdAt)) : ' · 아직 글이 없어요') + '</div>';
+      html += '</'+tag+'>';
+      if(reordering){
+        html += '<div class="board-move">';
+        html += '<button class="move-btn" data-boardup="'+esc(b.id)+'"'+(i===0?' disabled':'')+' aria-label="위로">▲</button>';
+        html += '<button class="move-btn" data-boarddown="'+esc(b.id)+'"'+(i===list.length-1?' disabled':'')+' aria-label="아래로">▼</button>';
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function tplBoardView(b){
+    var posts = postsOfBoard(b.id);
+    var html = '<button class="back-link" id="board-back">‹ 게시판 목록</button>';
+    html += '<div class="page-head"><h2>'+esc(b.name)+
+      (b.writeRestricted?'<span class="badge-lock" style="margin-left:9px;vertical-align:4px;">관리자 전용</span>':'')+'</h2></div>';
+
+    html += '<div class="clients-bar"><div style="flex:1;"></div>';
+    if(canWriteBoard(b)){
+      html += '<button class="btn btn-primary btn-sm" id="post-add" style="margin-top:0;width:auto;flex:none;">+ 글쓰기</button>';
+    }
+    if(isAdmin()){
+      html += '<button class="btn btn-ghost btn-sm" id="board-edit" style="margin-top:0;width:auto;flex:none;">게시판 설정</button>';
+    }
+    html += '</div>';
+
+    if(!canWriteBoard(b)){
+      html += '<div class="note-msg" style="margin-top:0;">읽기 전용 게시판이에요. 글쓰기는 관리자와 권한 있는 구성원만 할 수 있어요.</div>';
+    }
+
+    if(!posts.length){
+      html += '<div class="empty-note">아직 올라온 글이 없어요.</div>';
+      return html;
+    }
+
+    html += '<div class="post-list">';
+    posts.forEach(function(p){
+      html += '<button class="post-row'+(p.pinned?' pinned':'')+'" data-postopen="'+esc(p.id)+'">';
+      html += '<div class="post-row-title">'+(p.pinned?'<span class="pin-badge">고정</span>':'')+esc(p.title||'(제목 없음)')+'</div>';
+      html += '<div class="post-row-meta">'+esc(p.authorName||'')+' · '+esc(fmtDateTime(p.createdAt))+'</div>';
+      html += '</button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function tplPostView(p){
+    var b = boardById(p.boardId);
+    var html = '<button class="back-link" id="post-back">‹ '+esc(b ? b.name : '게시판')+'</button>';
+    html += '<div class="post-view">';
+    html += '<h2 class="post-title">'+(p.pinned?'<span class="pin-badge">고정</span>':'')+esc(p.title||'(제목 없음)')+'</h2>';
+    html += '<div class="post-byline">'+esc(p.authorName||'')+' · '+esc(fmtDateTime(p.createdAt))+
+      (p.updatedAt && p.updatedAt !== p.createdAt ? ' · 수정됨' : '')+'</div>';
+    html += '<div class="post-body">'+esc(p.body||'')+'</div>';
+    if(canEditPost(p)){
+      html += '<div class="modal-actions" style="margin-top:22px;">';
+      html += '<button class="btn btn-danger" id="post-delete">삭제</button>';
+      html += '<button class="btn btn-primary" id="post-editbtn">수정</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function tplPostEditModal(p){
+    var isNew = !p.id;
+    var html = '<div class="overlay" id="post-overlay"><div class="modal">';
+    html += '<div class="modal-head"><h3>'+(isNew?'글쓰기':'글 수정')+'</h3><button class="modal-close" id="post-close">&times;</button></div>';
+    html += '<div class="field"><label for="po-title">제목</label><input id="po-title" placeholder="제목" value="'+esc(p.title||'')+'"/></div>';
+    html += '<div class="field"><label for="po-body">내용</label><textarea id="po-body" rows="9" placeholder="내용을 입력해주세요.">'+esc(p.body||'')+'</textarea></div>';
+    if(canManageSchedule()){
+      var pinnedNow = pinnedOfBoard(p.boardId).length;
+      html += '<div class="form-check"><input type="checkbox" id="po-pin"'+(p.pinned?' checked':'')+'/>' +
+        '<label for="po-pin">맨 위에 고정' +
+        '<span class="check-sub">공지처럼 목록 맨 위에 붙어요. 게시판마다 최대 '+PIN_LIMIT+'개까지 고정할 수 있고, 넘기면 가장 먼저 고정한 글이 자동으로 풀려요. (지금 '+pinnedNow+'/'+PIN_LIMIT+'개)</span></label></div>';
+    }
+    if(state.postError) html += '<div class="err-msg">'+esc(state.postError)+'</div>';
+    html += '<div class="modal-actions">';
+    html += '<button class="btn btn-primary" id="post-save"'+(state.postBusy?' disabled':'')+'>'+(state.postBusy?'저장 중…':'저장')+'</button>';
+    html += '</div></div></div>';
+    return html;
+  }
+
+  function tplBoardEditModal(b){
+    var isNew = !b.id;
+    var html = '<div class="overlay" id="boardedit-overlay"><div class="modal" style="max-width:420px;">';
+    html += '<div class="modal-head"><h3>'+(isNew?'게시판 만들기':'게시판 설정')+'</h3><button class="modal-close" id="boardedit-close">&times;</button></div>';
+    html += '<div class="field"><label for="bd-name">게시판 이름</label><input id="bd-name" placeholder="예: 공지사항, 의견게시판" value="'+esc(b.name||'')+'"/></div>';
+    html += '<div class="form-check"><input type="checkbox" id="bd-restrict"'+(b.writeRestricted?' checked':'')+'/>' +
+      '<label for="bd-restrict">관리자와 권한 있는 구성원만 글쓰기' +
+      '<span class="check-sub">공지사항처럼 안내용 게시판에 쓰세요. 체크하지 않으면 모든 구성원이 글을 쓸 수 있어요. 읽기는 누구나 가능해요.</span></label></div>';
+    if(state.boardError) html += '<div class="err-msg">'+esc(state.boardError)+'</div>';
+    html += '<div class="modal-actions">';
+    if(!isNew) html += '<button class="btn btn-danger" id="boardedit-delete">게시판 삭제</button>';
+    html += '<button class="btn btn-primary" id="boardedit-save"'+(state.boardBusy?' disabled':'')+'>'+(state.boardBusy?'저장 중…':'저장')+'</button>';
+    html += '</div></div></div>';
+    return html;
+  }
+
+  /* ---------------- templates: settings (admin) ---------------- */
+  function tplSettingsPanel(){
+    var s = state.account || {};
+    var html = '<div class="page-head"><h2>상담센터 설정</h2></div>';
+    html += '<div class="card" style="padding:20px;max-width:460px;">';
+    html += '<div class="field"><label>센터 이름</label><input id="st-org" value="'+esc(s.orgName||'')+'"/></div>';
+    html += '<div class="field"><label>내 이름</label><input id="st-name" value="'+esc(s.name||'')+'"/></div>';
+    html += '<div class="field"><label>내 이메일</label><input id="st-email" type="email" value="'+esc(s.email||'')+'"/></div>';
+    html += '<div class="field"><label>내 전화번호</label><input id="st-phone" type="tel" value="'+esc(s.phone||'')+'"/></div>';
+    if(state.settingsMsg) html += '<div class="note-msg">'+esc(state.settingsMsg)+'</div>';
+    html += '<div id="st-err" class="err-msg" hidden></div>';
+    html += '<button class="btn btn-primary" id="st-save"'+(state.settingsBusy?' disabled':'')+'>'+(state.settingsBusy?'저장 중…':'저장')+'</button>';
+    html += '</div>';
+
+    html += '<div class="card" style="padding:20px;max-width:460px;margin-top:16px;">';
+    html += '<h3 style="margin-top:0;">비밀번호 변경</h3>';
+    html += '<div class="field"><label>새 비밀번호</label><input id="st-pw" type="password" autocomplete="new-password" placeholder="'+MIN_PW+'자 이상"/></div>';
+    html += '<div class="field"><label>새 비밀번호 확인</label><input id="st-pw2" type="password" placeholder="다시 입력"/></div>';
+    html += '<div id="st-pw-err" class="err-msg" hidden></div>';
+    html += '<button class="btn btn-primary" id="st-pw-save"'+(state.pwBusy?' disabled':'')+'>'+(state.pwBusy?'변경 중…':'비밀번호 변경')+'</button>';
+    if(state.pwMsg) html += '<div class="note-msg" style="margin-top:10px;">'+esc(state.pwMsg)+'</div>';
+    html += '</div>';
+    return html;
+  }
+
+  /* ---------------- bind: app shell / drawer ---------------- */
+  function bindApp(){
+    var menuBtn = document.getElementById('menu-btn');
+    if(menuBtn) menuBtn.addEventListener('click', function(){ state.menuOpen = true; render(); });
+
+    if(state.menuOpen){
+      var overlay = document.getElementById('drawer-overlay');
+      if(overlay) overlay.addEventListener('click', function(ev){ if(ev.target===overlay){ state.menuOpen=false; render(); } });
+      var closeBtn = document.getElementById('drawer-close');
+      if(closeBtn) closeBtn.addEventListener('click', function(){ state.menuOpen=false; render(); });
+      document.querySelectorAll('[data-goto]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          state.panel = btn.getAttribute('data-goto');
+          state.menuOpen = false;
+          state.orgPopupId = null; state.showAddMember=false;
+          state.boardId = null; state.postId = null; state.boardReorder = false;
+          state.clientFilter = null;
+          render();
+        });
+      });
+      var logoutBtn = document.getElementById('drawer-logout');
+      if(logoutBtn) logoutBtn.addEventListener('click', function(){ logout(); });
+    }
+
+    bindConfirm();   // before the panel branches below, which return early
+
+    if(state.panel === 'orgchart'){ bindOrgChart(); bindClientView(); return; }
+    if(state.panel === 'boards'){ bindBoardsPanel(); return; }
+    if(state.panel === 'clients'){ bindClientsPanel(); bindClientView(); return; }
+    if(state.panel === 'settings' && isAdmin()){ bindSettingsPanel(); return; }
+    bindCalendarPanel();
+    bindClientView();
+  }
+
+  /* ---------------- bind: calendar panel ---------------- */
+  function bindCalendarPanel(){
+    var prevBtn = document.getElementById('prev-month');
+    var nextBtn = document.getElementById('next-month');
+    var todayBtn = document.getElementById('today-btn');
+    if(prevBtn) prevBtn.addEventListener('click', function(){
+      state.view.month--; if(state.view.month<0){ state.view.month=11; state.view.year--; } render();
+    });
+    if(nextBtn) nextBtn.addEventListener('click', function(){
+      state.view.month++; if(state.view.month>11){ state.view.month=0; state.view.year++; } render();
+    });
+    if(todayBtn) todayBtn.addEventListener('click', function(){
+      state.view.year = today.getFullYear(); state.view.month = today.getMonth(); render();
+    });
+
+    document.querySelectorAll('[data-colormode]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.colorMode = btn.getAttribute('data-colormode');
+        saveColorMode(state.colorMode);
+        // each mode carries its own filter; don't leave a hidden one applied
+        state.adminFilter = null; state.adminJobFilter = null;
+        render();
+      });
+    });
+
+    document.querySelectorAll('[data-filter]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var v = btn.getAttribute('data-filter');
+        state.adminFilter = v || null;
+        render();
+      });
+    });
+
+    document.querySelectorAll('[data-jobfilter]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var v = btn.getAttribute('data-jobfilter');
+        state.adminJobFilter = v ? (v===NO_JOB ? NO_JOB : jobKey(v)) : null;
+        render();
+      });
+    });
+
+    document.querySelectorAll('[data-day]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.dayModal = btn.getAttribute('data-day');
+        render();
+      });
+    });
+
+    bindDayModal();
+    bindEditModal();
+  }
+
+  function bindDayModal(){
+    var overlay = document.getElementById('day-overlay');
+    if(!overlay) return;
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay){ state.dayModal=null; render(); } });
+    var closeBtn = document.getElementById('day-close');
+    if(closeBtn) closeBtn.addEventListener('click', function(){ state.dayModal=null; render(); });
+
+    var addBtn = document.getElementById('day-add');
+    if(addBtn) addBtn.addEventListener('click', function(){
+      var defaultId = canManageSchedule()
+        ? (state.adminFilter || (state.members[0] && state.members[0].id) || '')
+        : state.account.id;
+      var dc = memberById(defaultId);
+      var d0 = dateFromStr(state.dayModal);
+      state.repeatCount = 1;
+      state.repeatDows = d0 ? [d0.getDay()] : [];
+      state.editEntry = {
+        id:null, date: state.dayModal, start:'', end:'', title:'', memo:'',
+        counselorId: defaultId, counselorName: dc ? dc.name : (state.account.name||'')
+      };
+      render();
+    });
+
+    document.querySelectorAll('[data-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-edit');
+        var e = state.entries.filter(function(x){ return x.id===id; })[0];
+        if(e) { state.editEntry = JSON.parse(JSON.stringify(e)); render(); }
+      });
+    });
+    document.querySelectorAll('[data-del]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-del');
+        askConfirm({
+          title:'일정 삭제', message:'이 일정을 삭제할까요?', okLabel:'삭제',
+          onOk: function(){ state.db.collection('schedule').doc(id).delete().catch(function(){}); }
+        });
+      });
+    });
+  }
+
+  function bindEditModal(){
+    var overlay = document.getElementById('edit-overlay');
+    if(!overlay) return;
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay){ state.editEntry=null; render(); } });
+    var closeBtn = document.getElementById('edit-close');
+    if(closeBtn) closeBtn.addEventListener('click', function(){ state.editEntry=null; render(); });
+
+    var delBtn = document.getElementById('edit-delete');
+    if(delBtn) delBtn.addEventListener('click', function(){
+      var entryId = state.editEntry.id;
+      askConfirm({
+        title:'일정 삭제', message:'이 일정을 삭제할까요?', okLabel:'삭제',
+        onOk: function(){
+          state.db.collection('schedule').doc(entryId).delete().then(function(){
+            state.editEntry=null; state.dayModal=null; render();
+          }).catch(function(){});
+        }
+      });
+    });
+
+    var delSeriesBtn = document.getElementById('edit-delete-series');
+    if(delSeriesBtn) delSeriesBtn.addEventListener('click', function(){
+      var sid = state.editEntry && state.editEntry.seriesId;
+      if(!sid) return;
+      var targets = state.entries.filter(function(e){ return e.seriesId===sid; });
+      askConfirm({
+        title:'반복 일정 전체 삭제',
+        message:'이 반복 일정 '+targets.length+'회를 모두 삭제할까요? 되돌릴 수 없어요.',
+        okLabel:'전체 삭제',
+        onOk: function(){
+          var chain = Promise.resolve();
+          targets.forEach(function(e){
+            chain = chain.then(function(){ return state.db.collection('schedule').doc(e.id).delete(); });
+          });
+          chain.then(function(){
+            state.editEntry=null; state.dayModal=null; render();
+          }).catch(function(){
+            var errEl = document.getElementById('edit-err');
+            if(errEl){ errEl.textContent='일부 일정을 삭제하지 못했어요. 다시 시도해주세요.'; errEl.hidden=false; }
+          });
+        }
+      });
+    });
+
+    /* --- 내담자 연결 --- */
+    var counselorSel = document.getElementById('ef-counselor');
+    var titleEl = document.getElementById('ef-title');
+    var applyClientLink = function(value){
+      state.editEntry.title = value;
+      var cl = clientByName(value);
+      // A registered client carries their 담당 상담사 across automatically.
+      // Set it on the element before re-rendering, since form state captured
+      // at render time is what wins afterwards.
+      if(cl && cl.counselorId && counselorSel){
+        var hasOption = Array.prototype.some.call(counselorSel.options, function(o){ return o.value===cl.counselorId; });
+        if(hasOption) counselorSel.value = cl.counselorId;
+      }
+      // `change` on a text input fires mid-blur; rebuilding the DOM right then
+      // throws ("node to be removed is no longer a child"). Let blur finish.
+      setTimeout(render, 0);
+    };
+    if(titleEl) titleEl.addEventListener('change', function(){ applyClientLink(titleEl.value); });
+
+    attachAutocomplete('ef-title', 'ef-title-ac', function(){
+      return clientsSorted().map(function(cl){ return cl.name; });
+    }, applyClientLink);
+
+    /* --- 반복 설정 --- */
+    var dateEl = document.getElementById('ef-date');
+    if(dateEl) dateEl.addEventListener('change', function(){
+      state.editEntry.date = dateEl.value;
+      // while the weekday list is still the untouched default, follow the date
+      if(state.repeatDows.length <= 1){
+        var d = dateFromStr(dateEl.value);
+        if(d) state.repeatDows = [d.getDay()];
+      }
+      render();
+    });
+
+    var repeatEl = document.getElementById('ef-repeat');
+    if(repeatEl) repeatEl.addEventListener('change', function(){
+      state.repeatCount = parseInt(repeatEl.value, 10) || 1;
+      if(state.repeatCount > 1 && !state.repeatDows.length){
+        var d = dateFromStr(state.editEntry.date);
+        if(d) state.repeatDows = [d.getDay()];
+      }
+      render();
+    });
+
+    document.querySelectorAll('[data-dow]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var i = parseInt(btn.getAttribute('data-dow'), 10);
+        var at = state.repeatDows.indexOf(i);
+        if(at === -1) state.repeatDows.push(i); else state.repeatDows.splice(at, 1);
+        state.repeatDows.sort();
+        render();
+      });
+    });
+
+    /* --- 시작 / 소요 / 종료 시간 연동 --- */
+    var sh = document.getElementById('ef-start-h'), sm = document.getElementById('ef-start-m');
+    var eh = document.getElementById('ef-end-h'), em = document.getElementById('ef-end-m');
+    var durEl = document.getElementById('ef-dur');
+    var startMinutes = function(){ return parseInt(sh.value,10)*60 + parseInt(sm.value,10); };
+    var endMinutes = function(){ return parseInt(eh.value,10)*60 + parseInt(em.value,10); };
+    var writeEnd = function(total){
+      var hm = minToHM(total).split(':');
+      eh.value = hm[0]; em.value = hm[1];
+    };
+    var applyDuration = function(){
+      var d = parseInt(durEl.value, 10);
+      if(isNaN(d)) return;            // "직접 지정" — leave the end time alone
+      writeEnd(startMinutes() + d);
+    };
+    var refreshDuration = function(){
+      var diff = endMinutes() - startMinutes();
+      if(diff < 0) diff += 1440;
+      durEl.value = DURATIONS.indexOf(diff) !== -1 ? String(diff) : 'custom';
+    };
+    if(durEl) durEl.addEventListener('change', applyDuration);
+    [sh, sm].forEach(function(el){ if(el) el.addEventListener('change', applyDuration); });
+    [eh, em].forEach(function(el){ if(el) el.addEventListener('change', refreshDuration); });
+
+    var saveBtn = document.getElementById('edit-save');
+    saveBtn.addEventListener('click', function(){
+      var errEl = document.getElementById('edit-err');
+      var fail = function(msg){ errEl.textContent = msg; errEl.hidden = false; };
+      var date = document.getElementById('ef-date').value;
+      var start = minToHM(startMinutes());
+      var end = minToHM(endMinutes());
+      var title = document.getElementById('ef-title').value.trim();
+      var memo = document.getElementById('ef-memo').value.trim();
+      var counselorId = counselorSel ? counselorSel.value : state.account.id;
+
+      if(!date){ return fail('날짜를 선택해주세요.'); }
+      if(!title){ return fail('제목을 입력해주세요.'); }
+      if(!counselorId){ return fail('구성원을 선택해주세요. 먼저 조직도에서 구성원을 추가해주세요.'); }
+      if(endMinutes() <= startMinutes()){ return fail('종료 시간은 시작 시간보다 늦어야 해요.'); }
+
+      var isNew = !state.editEntry.id;
+      var dates = (isNew && state.repeatCount > 1)
+        ? repeatDates(date, state.repeatDows, state.repeatCount)
+        : [date];
+      if(!dates.length){ return fail('반복할 요일을 하나 이상 선택해주세요.'); }
+
+      var c = memberById(counselorId);
+      var linkedClient = clientByName(title);
+      var payload = {
+        orgId: myOrgId(),
+        counselorId: counselorId,
+        counselorName: c ? c.name : (state.account.name||''),
+        clientId: linkedClient ? linkedClient.id : '',
+        date: date, start:start, end:end, title:title, memo:memo,
+        updatedAt: new Date().toISOString()
+      };
+
+      state.editSaving = true;
+      var done = function(){
+        state.editSaving = false;
+        state.editEntry = null;
+        state.repeatCount = 1; state.repeatDows = [];
+        if(dates.length > 1){
+          // Most of a series lands on other days (and often the next month),
+          // so drop back to the calendar and say what was actually created —
+          // otherwise only the one entry on this day is visible and it looks
+          // like the repeat never applied.
+          state.dayModal = null;
+          showToast(dates.length+'회 일정을 등록했어요 · '+shortDate(dates[0])+' ~ '+shortDate(dates[dates.length-1]));
+          return;
+        }
+        render();
+      };
+      var failed = function(){
+        state.editSaving = false;
+        fail('저장에 실패했어요. 다시 시도해주세요.');
+      };
+
+      if(!isNew){
+        state.db.collection('schedule').doc(state.editEntry.id).update(payload).then(done).catch(failed);
+        return;
+      }
+
+      // Repeats are written one after another rather than all at once, so a
+      // 20-session series doesn't trip the store's concurrent-write budget.
+      var seriesId = dates.length > 1
+        ? ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2,8))
+        : null;
+      var chain = Promise.resolve();
+      dates.forEach(function(d){
+        chain = chain.then(function(){
+          var body = Object.assign({ createdAt:new Date().toISOString() }, payload, { date:d });
+          if(seriesId) body.seriesId = seriesId;
+          return state.db.collection('schedule').doc().set(body);
+        });
+      });
+      chain.then(done).catch(failed);
+    });
+  }
+
+  /* ---------------- bind: org chart ---------------- */
+  function bindOrgChart(){
+    if(!isAdmin()){ return; }
+
+    document.querySelectorAll('[data-orgpopup]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.orgPopupId = btn.getAttribute('data-orgpopup');
+        render();
+      });
+    });
+
+    var toggleAdd = document.getElementById('toggle-addmember');
+    if(toggleAdd) toggleAdd.addEventListener('click', function(){ state.showAddMember = !state.showAddMember; render(); });
+
+    attachAutocomplete('am-job', 'am-job-ac', jobSuggestions);
+
+    var amSubmit = document.getElementById('am-submit');
+    if(amSubmit) amSubmit.addEventListener('click', function(){
+      var errEl = document.getElementById('am-err');
+      var nameEl = document.getElementById('am-name');
+      var emailEl = document.getElementById('am-email');
+      var phoneEl = document.getElementById('am-phone');
+      var jobEl = document.getElementById('am-job');
+      var passwordEl = document.getElementById('am-password');
+      var name = nameEl.value.trim();
+      var email = emailEl.value.trim();
+      var emailLower = normEmail(email);
+      var phone = phoneEl.value.trim();
+      var job = jobEl ? jobEl.value.trim() : '';
+      var password = passwordEl.value;
+
+      if(!name){ errEl.textContent='이름을 입력해주세요.'; errEl.hidden=false; return; }
+      if(!emailLower || emailLower.indexOf('@')<0){ errEl.textContent='올바른 이메일 주소를 입력해주세요.'; errEl.hidden=false; return; }
+      if(password.length < MIN_PW){ errEl.textContent='비밀번호는 '+MIN_PW+'자 이상이어야 해요.'; errEl.hidden=false; return; }
+
+      state.addMemberBusy = true; errEl.hidden=true; render();
+      var db = state.db;
+      var orgId = myOrgId();
+
+      // 별도의 인증 창구로 계정을 만들어요. 기본 창구로 만들면 새 계정으로
+      // 로그인이 바뀌면서 관리자가 튕겨나갑니다.
+      db.collection('accounts').where('emailLower','==',emailLower).limit(1).get().then(function(existing){
+        if(!existing.empty){ throw {code:'dup-email'}; }
+        return state.auth.signUpSecondary(emailLower, password);
+      }).then(function(uid){
+        return db.collection('accounts').where('orgId','==',orgId).get().then(function(memberQs){
+          var count = memberQs.size;
+          return db.doc('accounts/'+uid).set({
+            role:'member', name:name, email:email, emailLower:emailLower, phone:phone,
+            orgId:orgId, position:'', job:job, duties:'', manageSchedule:false, active:true,
+            order:count, colorIndex: count % TAG_COUNT, joinedAt:new Date().toISOString()
+          });
+        });
+      }).then(function(){
+        state.addMemberBusy = false; state.showAddMember=false; render();
+      }).catch(function(err){
+        state.addMemberBusy = false;
+        errEl.textContent = (err && err.code==='dup-email')
+          ? '이미 등록된 이메일이에요.'
+          : authMessage(err, '추가에 실패했어요.');
+        errEl.hidden=false; render();
+      });
+    });
+
+    document.querySelectorAll('[data-jobcolor]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.jobColorPick = btn.getAttribute('data-jobcolor');
+        render();
+      });
+    });
+
+    bindOrgPopup();
+    bindJobColorModal();
+  }
+
+  function bindJobColorModal(){
+    var overlay = document.getElementById('jobcolor-overlay');
+    if(!overlay) return;
+    var job = state.jobColorPick;
+    var close = function(){ state.jobColorPick = null; render(); };
+
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) close(); });
+    var closeBtn = document.getElementById('jobcolor-close');
+    if(closeBtn) closeBtn.addEventListener('click', close);
+
+    document.querySelectorAll('[data-pickcolor]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var idx = parseInt(btn.getAttribute('data-pickcolor'), 10) || 0;
+        setJobColor(job, idx).catch(function(){});
+        close();
+      });
+    });
+  }
+
+  function bindOrgPopup(){
+    var overlay = document.getElementById('org-overlay');
+    if(!overlay) return;
+    var c = memberById(state.orgPopupId);
+    if(!c) return;
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay){ state.orgPopupId=null; render(); } });
+    var closeBtn = document.getElementById('org-close');
+    if(closeBtn) closeBtn.addEventListener('click', function(){ state.orgPopupId=null; render(); });
+
+    attachAutocomplete('oe-job', 'oe-job-ac', jobSuggestions);
+
+    var sendResetBtn = document.getElementById('org-sendreset');
+    if(sendResetBtn) sendResetBtn.addEventListener('click', function(){
+      if(!c.email) return;
+      state.orgResetMsg = '보내는 중…'; render();
+      state.auth.sendReset(normEmail(c.email)).then(function(){
+        state.orgResetMsg = c.email+' 로 재설정 메일을 보냈어요.'; render();
+      }).catch(function(err){
+        state.orgResetMsg = authMessage(err, '메일을 보내지 못했어요.'); render();
+      });
+    });
+
+    var toggleBtn = document.getElementById('org-toggleactive');
+    if(toggleBtn) toggleBtn.addEventListener('click', function(){
+      var goingInactive = c.active !== false;
+      var apply = function(){
+        state.db.collection('accounts').doc(c.id).update({ active: goingInactive ? false : true }).then(function(){
+          state.orgPopupId=null; render();
+        }).catch(function(){});
+      };
+      if(!goingInactive){ apply(); return; }
+      askConfirm({
+        title:'탈퇴 처리',
+        message:c.name+'님을 탈퇴 처리할까요?\n\n탈퇴하면 더 이상 로그인할 수 없고 본인 일정도 볼 수 없게 돼요. 그동안 등록된 상담 기록은 관리자 화면에 계속 남아있어요.',
+        okLabel:'탈퇴 처리',
+        onOk: apply
+      });
+    });
+
+    var delBtn = document.getElementById('org-delete');
+    if(delBtn) delBtn.addEventListener('click', function(){
+      askConfirm({
+        title:'구성원 완전 삭제',
+        message:c.name+' 구성원을 완전히 삭제할까요? 되돌릴 수 없어요.\n\n접근만 막고 기록을 남기려면 "탈퇴 처리"를 이용해주세요.',
+        okLabel:'완전 삭제',
+        onOk: function(){
+          state.db.collection('accounts').doc(c.id).delete().then(function(){
+            state.orgPopupId=null; render();
+          }).catch(function(){});
+        }
+      });
+    });
+
+    var saveBtn = document.getElementById('org-save');
+    if(saveBtn) saveBtn.addEventListener('click', function(){
+      var errEl = document.getElementById('org-err');
+      var position = document.getElementById('oe-position').value.trim();
+      var job = document.getElementById('oe-job').value.trim();
+      var manageEl = document.getElementById('oe-manage');
+      // `duties` is the retired free-text field: clear it once this member is
+      // saved, so `job` is the single source of truth from here on.
+      var payload = { position:position, job:job, duties:'', manageSchedule: !!(manageEl && manageEl.checked) };
+
+      state.db.collection('accounts').doc(c.id).update(payload).then(function(){
+        state.orgPopupId=null; state.orgResetMsg=''; render();
+      }).catch(function(){
+        errEl.textContent='저장에 실패했어요.'; errEl.hidden=false;
+      });
+    });
+  }
+
+  /* ---------------- bind: 회원(내담자) 관리 ---------------- */
+  // Filters the rendered cards in place — no re-render, so typing (including
+  // Korean IME composition) is never interrupted.
+  function applyClientFilter(){
+    var q = nameKey(state.clientSearch);
+    var qDigits = q.replace(/\D/g,'');
+    var anyShown = false;
+    document.querySelectorAll('.client-card').forEach(function(card){
+      var c = clientById(card.getAttribute('data-clientid'));
+      var show = !q || !!(c && (
+        nameKey(c.name).indexOf(q) !== -1 ||
+        nameKey(c.guardian).indexOf(q) !== -1 ||
+        (!!qDigits && normPhone(c.phone).indexOf(qDigits) !== -1)
+      ));
+      card.hidden = !show;
+      if(show) anyShown = true;
+    });
+    var none = document.getElementById('client-none');
+    if(none) none.hidden = anyShown || !document.querySelectorAll('.client-card').length;
+  }
+
+  function bindClientsPanel(){
+    document.querySelectorAll('[data-clientfilter]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var v = btn.getAttribute('data-clientfilter');
+        state.clientFilter = v || null;
+        render();
+      });
+    });
+
+    var search = document.getElementById('client-search');
+    if(search) search.addEventListener('input', function(){
+      state.clientSearch = search.value;
+      applyClientFilter();
+    });
+    applyClientFilter();
+
+    var addBtn = document.getElementById('client-add');
+    if(addBtn) addBtn.addEventListener('click', function(){
+      state.clientError = '';
+      state.clientEdit = { name:'', birth:'', guardian:'', phone:'', email:'', counselorId:'', memo:'' };
+      render();
+    });
+
+    document.querySelectorAll('[data-clientedit]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var c = clientById(btn.getAttribute('data-clientedit'));
+        if(!c) return;
+        state.clientError = '';
+        state.clientEdit = Object.assign({}, c);
+        render();
+      });
+    });
+
+    bindClientEditModal();
+  }
+
+  function bindClientEditModal(){
+    var overlay = document.getElementById('client-overlay');
+    if(!overlay) return;
+    var editing = state.clientEdit;
+    var close = function(){ state.clientEdit = null; state.clientError=''; render(); };
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) close(); });
+    var closeBtn = document.getElementById('client-close');
+    if(closeBtn) closeBtn.addEventListener('click', close);
+
+    // Rebuild the day list in place when year/month change, so February and
+    // 30-day months never offer a date that doesn't exist.
+    var byEl = document.getElementById('cl-birth-y');
+    var bmEl = document.getElementById('cl-birth-m');
+    var bdEl = document.getElementById('cl-birth-d');
+    var syncBirthDays = function(){
+      if(!byEl || !bmEl || !bdEl) return;
+      var y = parseInt(byEl.value,10), m = parseInt(bmEl.value,10);
+      var max = (y && m) ? daysInMonth(y, m) : 31;
+      var cur = parseInt(bdEl.value,10);
+      var opts = '<option value="">일</option>';
+      for(var d = 1; d <= max; d++){
+        opts += '<option value="'+pad2(d)+'"'+(d===cur?' selected':'')+'>'+d+'</option>';
+      }
+      bdEl.innerHTML = opts;
+      if(cur && cur > max) bdEl.value = '';
+    };
+    [byEl, bmEl].forEach(function(el){ if(el) el.addEventListener('change', syncBirthDays); });
+
+    var delBtn = document.getElementById('client-delete');
+    if(delBtn) delBtn.addEventListener('click', function(){
+      askConfirm({
+        title:'내담자 삭제',
+        message:(editing.name||'이 내담자')+' 정보를 삭제할까요?\n\n등록된 상담 일정은 지워지지 않고 그대로 남아요.',
+        okLabel:'삭제',
+        onOk: function(){
+          state.db.collection('clients').doc(editing.id).delete().then(function(){
+            state.clientEdit = null; render();
+          }).catch(function(){});
+        }
+      });
+    });
+
+    var saveBtn = document.getElementById('client-save');
+    if(saveBtn) saveBtn.addEventListener('click', function(){
+      var name = document.getElementById('cl-name').value.trim();
+      if(!name){ state.clientError='내담자 이름을 입력해주세요.'; render(); return; }
+
+      var dup = clientByName(name);
+      if(dup && dup.id !== editing.id){
+        state.clientError = '같은 이름의 내담자가 이미 등록돼 있어요.';
+        render(); return;
+      }
+
+      var by = byEl.value, bm = bmEl.value, bd = bdEl.value;
+      var filled = [by, bm, bd].filter(Boolean).length;
+      if(filled > 0 && filled < 3){
+        state.clientError = '생년월일은 연·월·일을 모두 선택하거나 모두 비워주세요.';
+        render(); return;
+      }
+
+      var payload = {
+        orgId: myOrgId(),
+        name: name,
+        birth: filled === 3 ? (by+'-'+bm+'-'+bd) : '',
+        guardian: document.getElementById('cl-guardian').value.trim(),
+        phone: document.getElementById('cl-phone').value.trim(),
+        email: document.getElementById('cl-email').value.trim(),
+        counselorId: document.getElementById('cl-counselor').value,
+        memo: document.getElementById('cl-memo').value,
+        updatedAt: new Date().toISOString()
+      };
+
+      state.clientBusy = true; state.clientError=''; render();
+      var op = editing.id
+        ? state.db.collection('clients').doc(editing.id).update(payload)
+        : state.db.collection('clients').doc().set(Object.assign({ createdAt:new Date().toISOString() }, payload));
+
+      op.then(function(){
+        state.clientBusy = false; state.clientEdit = null; render();
+      }).catch(function(){
+        state.clientBusy = false; state.clientError='저장에 실패했어요. 다시 시도해주세요.'; render();
+      });
+    });
+  }
+
+  // The read-only card can be opened from any panel, so it binds separately.
+  function bindClientView(){
+    document.querySelectorAll('[data-clientinfo]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        state.clientView = btn.getAttribute('data-clientinfo');
+        render();
+      });
+    });
+
+    var overlay = document.getElementById('clientview-overlay');
+    if(!overlay) return;
+    var close = function(){ state.clientView = null; render(); };
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) close(); });
+    var closeBtn = document.getElementById('clientview-close');
+    if(closeBtn) closeBtn.addEventListener('click', close);
+
+    var editBtn = document.getElementById('clientview-edit');
+    if(editBtn) editBtn.addEventListener('click', function(){
+      var c = clientById(state.clientView);
+      if(!c) return;
+      state.clientView = null;
+      state.clientError = '';
+      state.clientEdit = Object.assign({}, c);
+      state.panel = 'clients';
+      state.dayModal = null; state.editEntry = null;
+      render();
+    });
+  }
+
+  /* ---------------- bind: 게시판 ---------------- */
+  function bindBoardsPanel(){
+    var back1 = document.getElementById('board-back');
+    if(back1) back1.addEventListener('click', function(){ state.boardId=null; state.postId=null; render(); });
+    var back2 = document.getElementById('post-back');
+    if(back2) back2.addEventListener('click', function(){ state.postId=null; render(); });
+
+    document.querySelectorAll('[data-boardopen]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.boardId = btn.getAttribute('data-boardopen');
+        state.postId = null;
+        state.boardReorder = false;
+        render();
+      });
+    });
+    var reorderBtn = document.getElementById('board-reorder');
+    if(reorderBtn) reorderBtn.addEventListener('click', function(){ state.boardReorder = true; render(); });
+    var reorderDone = document.getElementById('board-reorder-done');
+    if(reorderDone) reorderDone.addEventListener('click', function(){ state.boardReorder = false; render(); });
+
+    document.querySelectorAll('[data-boardup]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        moveBoard(btn.getAttribute('data-boardup'), -1);
+      });
+    });
+    document.querySelectorAll('[data-boarddown]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        moveBoard(btn.getAttribute('data-boarddown'), 1);
+      });
+    });
+
+    document.querySelectorAll('[data-postopen]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.postId = btn.getAttribute('data-postopen');
+        render();
+      });
+    });
+
+    var addBoard = document.getElementById('board-add');
+    if(addBoard) addBoard.addEventListener('click', function(){
+      state.boardError=''; state.boardEdit = { name:'', writeRestricted:false }; render();
+    });
+    var editBoard = document.getElementById('board-edit');
+    if(editBoard) editBoard.addEventListener('click', function(){
+      var b = boardById(state.boardId);
+      if(!b) return;
+      state.boardError=''; state.boardEdit = Object.assign({}, b); render();
+    });
+
+    var addPost = document.getElementById('post-add');
+    if(addPost) addPost.addEventListener('click', function(){
+      state.postError=''; state.postEdit = { boardId: state.boardId, title:'', body:'' }; render();
+    });
+    var editPost = document.getElementById('post-editbtn');
+    if(editPost) editPost.addEventListener('click', function(){
+      var p = postById(state.postId);
+      if(!p) return;
+      state.postError=''; state.postEdit = Object.assign({}, p); render();
+    });
+    var delPost = document.getElementById('post-delete');
+    if(delPost) delPost.addEventListener('click', function(){
+      var p = postById(state.postId);
+      if(!p) return;
+      askConfirm({
+        title:'글 삭제', message:'이 글을 삭제할까요?', okLabel:'삭제',
+        onOk: function(){
+          state.db.collection('posts').doc(p.id).delete().then(function(){
+            state.postId = null; render();
+          }).catch(function(){});
+        }
+      });
+    });
+
+    bindPostEditModal();
+    bindBoardEditModal();
+  }
+
+  function bindPostEditModal(){
+    var overlay = document.getElementById('post-overlay');
+    if(!overlay) return;
+    var editing = state.postEdit;
+    var close = function(){ state.postEdit=null; state.postError=''; render(); };
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) close(); });
+    var closeBtn = document.getElementById('post-close');
+    if(closeBtn) closeBtn.addEventListener('click', close);
+
+    var saveBtn = document.getElementById('post-save');
+    if(saveBtn) saveBtn.addEventListener('click', function(){
+      var title = document.getElementById('po-title').value.trim();
+      var body = document.getElementById('po-body').value;
+      if(!title){ state.postError='제목을 입력해주세요.'; render(); return; }
+      if(!body.trim()){ state.postError='내용을 입력해주세요.'; render(); return; }
+
+      var board = boardById(editing.boardId);
+      if(!canWriteBoard(board)){ state.postError='이 게시판에는 글을 쓸 수 없어요.'; render(); return; }
+
+      var pinEl = document.getElementById('po-pin');
+      var wantPin = !!(pinEl && pinEl.checked);
+
+      state.postBusy = true; state.postError=''; render();
+      var now = new Date().toISOString();
+
+      // Keep the original pinnedAt when a post was already pinned, so simply
+      // editing its text doesn't jump it above the other pinned ones.
+      var pinnedAt = wantPin ? ((editing.pinned && editing.pinnedAt) ? editing.pinnedAt : now) : '';
+
+      // Make room first: if the board is already at the limit, the oldest
+      // pin is released before this one goes up.
+      var release = [];
+      if(wantPin){
+        var others = pinnedOfBoard(editing.boardId).filter(function(p){ return p.id !== editing.id; });
+        var overflow = others.length - (PIN_LIMIT - 1);
+        if(overflow > 0) release = others.slice(0, overflow);
+      }
+
+      var chain = Promise.resolve();
+      release.forEach(function(p){
+        chain = chain.then(function(){
+          return state.db.collection('posts').doc(p.id).update({ pinned:false, pinnedAt:'' });
+        });
+      });
+
+      var op = chain.then(function(){
+        if(editing.id){
+          return state.db.collection('posts').doc(editing.id).update({
+            title:title, body:body, pinned:wantPin, pinnedAt:pinnedAt, updatedAt:now
+          });
+        }
+        return state.db.collection('posts').doc().set({
+          orgId: myOrgId(), boardId: editing.boardId,
+          title: title, body: body,
+          pinned: wantPin, pinnedAt: pinnedAt,
+          authorId: state.account.id, authorName: state.account.name || '',
+          createdAt: now, updatedAt: now
+        });
+      });
+
+      op.then(function(){
+        state.postBusy = false; state.postEdit = null; render();
+      }).catch(function(){
+        state.postBusy = false; state.postError='저장에 실패했어요. 다시 시도해주세요.'; render();
+      });
+    });
+  }
+
+  function bindBoardEditModal(){
+    var overlay = document.getElementById('boardedit-overlay');
+    if(!overlay) return;
+    var editing = state.boardEdit;
+    var close = function(){ state.boardEdit=null; state.boardError=''; render(); };
+    overlay.addEventListener('click', function(ev){ if(ev.target===overlay) close(); });
+    var closeBtn = document.getElementById('boardedit-close');
+    if(closeBtn) closeBtn.addEventListener('click', close);
+
+    var delBtn = document.getElementById('boardedit-delete');
+    if(delBtn) delBtn.addEventListener('click', function(){
+      var posts = postsOfBoard(editing.id);
+      askConfirm({
+        title:'게시판 삭제',
+        message:'"'+editing.name+'" 게시판을 삭제할까요?\n\n안에 있는 글 '+posts.length+'개도 함께 지워지고 되돌릴 수 없어요.',
+        okLabel:'게시판 삭제',
+        onOk: function(){
+          var chain = Promise.resolve();
+          posts.forEach(function(p){
+            chain = chain.then(function(){ return state.db.collection('posts').doc(p.id).delete(); });
+          });
+          chain.then(function(){
+            return state.db.collection('boards').doc(editing.id).delete();
+          }).then(function(){
+            state.boardEdit=null; state.boardId=null; state.postId=null; render();
+          }).catch(function(){
+            state.boardError='삭제에 실패했어요. 다시 시도해주세요.'; render();
+          });
+        }
+      });
+    });
+
+    var saveBtn = document.getElementById('boardedit-save');
+    if(saveBtn) saveBtn.addEventListener('click', function(){
+      var name = document.getElementById('bd-name').value.trim();
+      var restrict = !!document.getElementById('bd-restrict').checked;
+      if(!name){ state.boardError='게시판 이름을 입력해주세요.'; render(); return; }
+
+      var dup = state.boards.filter(function(b){
+        return nameKey(b.name)===nameKey(name) && b.id !== editing.id;
+      })[0];
+      if(dup){ state.boardError='같은 이름의 게시판이 이미 있어요.'; render(); return; }
+
+      state.boardBusy = true; state.boardError=''; render();
+      var op = editing.id
+        ? state.db.collection('boards').doc(editing.id).update({ name:name, writeRestricted:restrict })
+        : state.db.collection('boards').doc().set({
+            orgId: myOrgId(), name:name, writeRestricted:restrict,
+            order: state.boards.length, createdAt:new Date().toISOString()
+          });
+      op.then(function(){
+        state.boardBusy = false; state.boardEdit = null; render();
+      }).catch(function(){
+        state.boardBusy = false; state.boardError='저장에 실패했어요. 다시 시도해주세요.'; render();
+      });
+    });
+  }
+
+  /* ---------------- bind: settings panel ---------------- */
+  function bindSettingsPanel(){
+    var saveBtn = document.getElementById('st-save');
+    if(saveBtn) saveBtn.addEventListener('click', function(){
+      var errEl = document.getElementById('st-err');
+      var org = document.getElementById('st-org').value.trim();
+      var name = document.getElementById('st-name').value.trim();
+      var email = document.getElementById('st-email').value.trim();
+      var emailLower = normEmail(email);
+      var phone = document.getElementById('st-phone').value.trim();
+      if(!org){ errEl.textContent='센터 이름을 입력해주세요.'; errEl.hidden=false; return; }
+      if(!name){ errEl.textContent='이름을 입력해주세요.'; errEl.hidden=false; return; }
+      if(!emailLower || emailLower.indexOf('@')<0){ errEl.textContent='올바른 이메일 주소를 입력해주세요.'; errEl.hidden=false; return; }
+
+      state.settingsBusy = true; errEl.hidden=true; state.settingsMsg=''; render();
+      var db = state.db;
+      var myId = state.account.id;
+
+      var checkDup = emailLower === normEmail(state.account.email)
+        ? Promise.resolve({empty:true})
+        : db.collection('accounts').where('emailLower','==',emailLower).limit(1).get();
+
+      checkDup.then(function(qs){
+        if(!qs.empty){ throw {code:'dup-email'}; }
+        return db.doc('accounts/'+myId).update({ orgName:org, name:name, email:email, emailLower:emailLower, phone:phone });
+      }).then(function(){
+        state.settingsBusy = false; state.settingsMsg = '저장했어요.'; render();
+      }).catch(function(err){
+        state.settingsBusy = false;
+        document.getElementById('st-err').textContent = (err && err.code==='dup-email') ? '이미 사용 중인 이메일이에요.' : '저장에 실패했어요.';
+        document.getElementById('st-err').hidden = false;
+        render();
+      });
+    });
+
+    var pwSaveBtn = document.getElementById('st-pw-save');
+    if(pwSaveBtn) pwSaveBtn.addEventListener('click', function(){
+      var errEl = document.getElementById('st-pw-err');
+      var pw = document.getElementById('st-pw').value;
+      var pw2 = document.getElementById('st-pw2').value;
+      if(pw.length < MIN_PW){ errEl.textContent='비밀번호는 '+MIN_PW+'자 이상이어야 해요.'; errEl.hidden=false; return; }
+      if(pw !== pw2){ errEl.textContent='비밀번호가 일치하지 않아요.'; errEl.hidden=false; return; }
+
+      state.pwBusy = true; errEl.hidden=true; state.pwMsg=''; render();
+      state.auth.updatePassword(pw).then(function(){
+        state.pwBusy = false; state.pwMsg = '비밀번호를 변경했어요.'; render();
+      }).catch(function(err){
+        state.pwBusy = false;
+        var el = document.getElementById('st-pw-err');
+        if(el){
+          el.textContent = authMessage(err, '변경에 실패했어요.');
+          el.hidden = false;
+        }
+        render();
+      });
+    });
+  }
+
+  boot();
+})();
+</script>
