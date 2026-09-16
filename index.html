@@ -913,7 +913,8 @@
     'FF4F7A5B',                                  // 2 초록 머리글
     'FFF3F0E9',                                  // 3 옅은 크림
     'FFFDECEC',                                  // 4 공휴일
-    'FFF7F7F5'                                   // 5 지난달/다음달
+    'FFF7F7F5',                                  // 5 지난달/다음달
+    'FFFCF3D6'                                   // 6 직접 입력하는 칸(단가)
   ];
   // borderId 0 = 없음, 1 = 얇은 테두리
   var STYLES = {
@@ -929,6 +930,16 @@
     dayHol:   { f:10, fill:4, b:1, align:'left', v:'top', wrap:true },
     dayOut:   { f:10, fill:5, b:1, align:'left', v:'top', wrap:true },
     th:       { f:4, fill:2, b:1, align:'center', v:'center' },
+    blockhead:{ f:4, fill:2, b:1, align:'left',   v:'center' },
+    dayhead:  { f:1, fill:3, b:1, align:'center', v:'center' },
+    dayheadSun:{f:5, fill:3, b:1, align:'center', v:'center' },
+    dayheadSat:{f:6, fill:3, b:1, align:'center', v:'center' },
+    rowhead:  { f:1, fill:3, b:1, align:'left',   v:'center' },
+    sumcell:  { f:1, fill:3, b:1, align:'center', v:'center' },
+    priceIn:  { f:0, fill:6, b:1, align:'right',  v:'center', numFmt:164 },
+    priceRef: { f:0, b:1, align:'right', v:'center', numFmt:164 },
+    money:    { f:1, b:1, align:'right', v:'center', numFmt:164 },
+    moneySum: { f:1, fill:3, b:1, align:'right', v:'center', numFmt:164 },
     td:       { f:0, b:1, align:'left', v:'center', wrap:true },
     tdC:      { f:0, b:1, align:'center', v:'center' },
     tdHead:   { f:1, fill:3, b:1, align:'left', v:'center' }
@@ -944,6 +955,7 @@
   function stylesXml(){
     var s = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
     s += '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+    s += '<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0"/></numFmts>';
     s += '<fonts count="'+FONTS.length+'">' + FONTS.map(fontXml).join('') + '</fonts>';
     s += '<fills count="'+FILLS.length+'">';
     s += '<fill><patternFill patternType="none"/></fill>';
@@ -973,8 +985,9 @@
            + (d.wrap ? ' wrapText="1"' : '')
            + '/>';
       }
-      s += '<xf numFmtId="0" fontId="'+(d.f||0)+'" fillId="'+(d.fill||0)+'" borderId="'+(d.b||0)+'" xfId="0"'
-         + ' applyFont="1"' + (d.fill ? ' applyFill="1"' : '') + (d.b ? ' applyBorder="1"' : '')
+      s += '<xf numFmtId="'+(d.numFmt||0)+'" fontId="'+(d.f||0)+'" fillId="'+(d.fill||0)+'" borderId="'+(d.b||0)+'" xfId="0"'
+         + ' applyFont="1"' + (d.numFmt ? ' applyNumberFormat="1"' : '')
+         + (d.fill ? ' applyFill="1"' : '') + (d.b ? ' applyBorder="1"' : '')
          + (al ? ' applyAlignment="1">'+al+'</xf>' : '/>');
     });
     s += '</cellXfs>';
@@ -1023,7 +1036,10 @@
         var span = cell.span || 1;
         var ref = colName(ci) + r;
         var st = ' s="'+styleIndex(cell.s || 'base')+'"';
-        if(cell.runs && cell.runs.length){
+        if(cell.f){
+          // 수식 칸 — 값을 미리 넣지 않고 엑셀이 직접 계산하게 둡니다
+          s += '<c r="'+ref+'"'+st+'><f>'+x(cell.f)+'</f></c>';
+        } else if(cell.runs && cell.runs.length){
           s += '<c r="'+ref+'"'+st+' t="inlineStr"><is>' + cell.runs.map(runXml).join('') + '</is></c>';
         } else if(typeof cell.v === 'number'){
           s += '<c r="'+ref+'"'+st+'><v>'+cell.v+'</v></c>';
@@ -1079,7 +1095,9 @@
     sheets.forEach(function(sh, i){
       wb += '<sheet name="'+x(sh.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>';
     });
-    wb += '</sheets></workbook>';
+    wb += '</sheets>';
+    wb += '<calcPr calcId="191029" fullCalcOnLoad="1"/>';
+    wb += '</workbook>';
     files.push({ name:'xl/workbook.xml', data:enc.encode(wb) });
 
     var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -1233,6 +1251,7 @@
   var COLORMODE_KEY = 'schedule-board-colormode-v1';
   var NO_JOB = '__nojob__';   // filter sentinel for "직무 미지정"
   var NO_COUNSELOR = '__nocounselor__';   // 회원 관리의 "담당 미지정" 필터
+  var NO_TYPE = '(타입 미지정)';
 
   /* ---------------- state ---------------- */
   var state = {
@@ -3429,64 +3448,140 @@
 
     var calendar = { name:'달력', landscape:true, cols:[26,26,26,26,26,26,26], rows:rows };
 
-    /* --- 2. 일정 목록 --- */
-    var head = ['날짜','요일','시작','종료','내담자','상담타입','회차','담당','보호자','연락처','메모'];
-    var listRows = [{ h:22, cells: head.map(function(h){ return { v:h, s:'th' }; }) }];
+    /* --- 2. 상담사별 집계 ---
+       하루 한 칸씩 1일부터 말일까지 늘어놓고, 상담사마다
+       "전체" 한 줄 + 상담타입마다 한 줄로 세어줍니다.
+       상담타입은 내담자 정보에 붙어 있고, 권한자만 볼 수 있어요. */
+    var dayCols = [];
+    for(var dd = 1; dd <= lastDay; dd++) dayCols.push(dd);
+
+    // 이 달에 쓰인 상담타입 모으기
+    var typeSet = {}, hasNoType = false;
     list.forEach(function(e){
-      var d = new Date(e.date + 'T00:00:00');
-      var c = clientForEntry(e);
-      var s = sessionMap[e.id];
-      listRows.push({ cells:[
-        { v:e.date, s:'tdC' },
-        { v: isNaN(d) ? '' : DOW_KO[d.getDay()], s:'tdC' },
-        { v:(e.start||'').slice(0,5), s:'tdC' },
-        { v:(e.end||'').slice(0,5), s:'tdC' },
-        { v:e.title||'', s:'td' },
-        { v: c ? typeOf(c) : '', s:'tdC' },
-        { v: s ? s.n : '', s:'tdC' },
-        { v:e.counselorName || (memberById(e.counselorId)||{}).name || '', s:'td' },
-        { v:(c && c.guardian) || '', s:'td' },
-        { v:(c && c.phone) || '', s:'td' },
-        { v:e.memo||'', s:'td' }
-      ]});
+      var t = typeOf(clientForEntry(e));
+      if(t) typeSet[t] = true; else hasNoType = true;
     });
-    if(list.length === 0){
-      listRows.push({ cells:[{ v:'이 달에는 등록된 일정이 없습니다.', s:'td', span:11 }] });
+    var typeList = Object.keys(typeSet).sort(function(a,b){ return a.localeCompare(b, 'ko'); });
+    if(hasNoType) typeList.push(NO_TYPE);
+
+    // 상담사 -> 타입 -> 날짜 -> 건수
+    function emptyTally(){
+      var t = { all: {}, sum: 0, byType: {} };
+      typeList.forEach(function(ty){ t.byType[ty] = { days:{}, sum:0 }; });
+      return t;
     }
-    var flat = { name:'일정 목록', cols:[13,6,8,8,16,10,6,14,14,16,34], rows:listRows };
+    var tally = {}, order = [];
+    function bucket(name){
+      if(!tally[name]){ tally[name] = emptyTally(); order.push(name); }
+      return tally[name];
+    }
+    // 활동 중인 구성원은 일정이 없어도 줄을 만들어둡니다 (급여 확인용)
+    state.members.filter(function(m){ return m.active !== false; })
+      .forEach(function(m){ bucket(m.name); });
 
-    /* --- 3. 담당별 집계 --- */
-    var byWho = {};
+    var centerTotal = emptyTally();
     list.forEach(function(e){
-      var who = e.counselorName || (memberById(e.counselorId)||{}).name || '(미지정)';
-      var b = byWho[who] = byWho[who] || { n:0, names:{} };
-      b.n++;
-      if(e.title) b.names[nameKey(e.title)] = true;
+      var who = e.counselorName || (memberById(e.counselorId)||{}).name || '(담당 미지정)';
+      var ty = typeOf(clientForEntry(e)) || NO_TYPE;
+      var d = parseInt(String(e.date||'').slice(8,10), 10);
+      if(!d) return;
+      [bucket(who), centerTotal].forEach(function(t){
+        t.all[d] = (t.all[d]||0) + 1;
+        t.sum++;
+        var bt = t.byType[ty];
+        if(bt){ bt.days[d] = (bt.days[d]||0) + 1; bt.sum++; }
+      });
     });
-    var aggRows = [{ h:22, cells:[
-      { v:'담당', s:'th' }, { v:'상담 건수', s:'th' }, { v:'내담자 수', s:'th' }
-    ]}];
-    Object.keys(byWho).sort(function(a,b){ return byWho[b].n - byWho[a].n; }).forEach(function(who){
-      aggRows.push({ cells:[
-        { v:who, s:'td' },
-        { v:byWho[who].n, s:'tdC' },
-        { v:Object.keys(byWho[who].names).length, s:'tdC' }
-      ]});
-    });
-    aggRows.push({ cells:[
-      { v:'합계', s:'tdHead' },
-      { v:list.length, s:'tdC' },
-      { v:countClients(list), s:'tdC' }
-    ]});
-    var agg = { name:'담당별 집계', cols:[18,12,12], rows:aggRows };
 
-    return [calendar, flat, agg];
+    // 구분 + 날짜들 + 합계 + 단가 + 금액
+    var WIDTH = 1 + dayCols.length + 3;
+    var COL_SUM   = colLetter(1 + dayCols.length);
+    var COL_PRICE = colLetter(2 + dayCols.length);
+    var COL_MONEY = colLetter(3 + dayCols.length);
+
+    var aggRows = [];
+    aggRows.push({ h:26, cells:[{ v: orgName + ' · ' + y + '년 ' + (m+1) + '월 상담사별 집계', s:'title', span:WIDTH }] });
+    aggRows.push({ h:16, cells:[{ v:'상담타입별로 몇 회씩 진행했는지 하루 단위로 나눠 적었어요. 빈 칸은 0회입니다.', s:'sub', span:WIDTH }] });
+    aggRows.push({ h:16, cells:[{ v:'노란 칸(맨 위 "센터 전체"의 단가)에 금액을 넣으면 아래 상담사 표에도 같이 반영되고, 금액이 자동으로 계산됩니다.', s:'sub', span:WIDTH }] });
+
+    function headRow(){
+      var cells = [{ v:'구분', s:'th' }];
+      dayCols.forEach(function(d){
+        var dow = new Date(y, m, d).getDay();
+        cells.push({ v:d, s: dow===0 ? 'dayheadSun' : (dow===6 ? 'dayheadSat' : 'dayhead') });
+      });
+      cells.push({ v:'합계', s:'th' });
+      cells.push({ v:'단가', s:'th' });
+      cells.push({ v:'금액', s:'th' });
+      return { h:20, cells:cells };
+    }
+
+    // 센터 전체 표의 단가 칸 위치를 기억해뒀다가, 아래 상담사 표들이 그 값을 끌어다 씁니다.
+    var masterPriceRow = {};
+
+    function block(title, t, isMaster){
+      aggRows.push({ cells:[] });                       // 한 줄 띄우기
+      aggRows.push({ h:22, cells:[{ v:title, s:'blockhead', span:WIDTH }] });
+      aggRows.push(headRow());
+
+      var totalRowNo = aggRows.length + 1;              // 곧 넣을 "전체" 줄의 엑셀 행 번호
+      var firstTypeRow = totalRowNo + 1;
+      var lastTypeRow  = totalRowNo + typeList.length;
+
+      // 전체 줄 — 금액은 아래 타입 줄들의 합
+      var totalCells = [{ v:'전체', s:'rowhead' }];
+      dayCols.forEach(function(d){
+        totalCells.push({ v: t.all[d] || '', s:'sumcell' });
+      });
+      totalCells.push({ v:t.sum, s:'sumcell' });
+      totalCells.push({ v:'', s:'sumcell' });
+      totalCells.push(typeList.length
+        ? { f:'SUM('+COL_MONEY+firstTypeRow+':'+COL_MONEY+lastTypeRow+')', s:'moneySum' }
+        : { v:'', s:'moneySum' });
+      aggRows.push({ cells:totalCells });
+
+      typeList.forEach(function(ty, i){
+        var rowNo = firstTypeRow + i;
+        var bt = t.byType[ty];
+        var cells = [{ v:ty, s:'td' }];
+        dayCols.forEach(function(d){
+          cells.push({ v: bt.days[d] || '', s:'tdC' });
+        });
+        cells.push({ v:bt.sum, s:'sumcell' });
+        if(isMaster){
+          masterPriceRow[ty] = rowNo;
+          cells.push({ v:'', s:'priceIn' });            // 여기에 단가를 적습니다
+        } else {
+          cells.push({ f:'$'+COL_PRICE+'$'+masterPriceRow[ty], s:'priceRef' });
+        }
+        cells.push({ f:COL_SUM+rowNo+'*'+COL_PRICE+rowNo, s:'money' });
+        aggRows.push({ cells:cells });
+      });
+    }
+
+    block('센터 전체', centerTotal, true);
+    order.forEach(function(name){ block(name, tally[name], false); });
+
+    var aggCols = [14];
+    dayCols.forEach(function(){ aggCols.push(3.4); });
+    aggCols.push(7); aggCols.push(11); aggCols.push(13);
+    var agg = { name:'상담사별 집계', landscape:true, cols:aggCols, rows:aggRows };
+
+    return [calendar, agg];
   }
 
   function countClients(list){
     var seen = {};
     list.forEach(function(e){ var k = clientKey(e); if(k) seen[k] = true; });
     return Object.keys(seen).length;
+  }
+
+  // 0 -> A, 26 -> AA (엑셀 열 이름)
+  function colLetter(n){
+    var out = '';
+    n = n + 1;
+    while(n > 0){ var r = (n - 1) % 26; out = String.fromCharCode(65 + r) + out; n = ((n - r) / 26) | 0; }
+    return out;
   }
 
   function saveBytes(bytes, filename){
@@ -3530,8 +3625,7 @@
     html += '<div class="card" style="padding:16px 20px;max-width:460px;margin-top:16px;">';
     html += '<h3 style="margin-top:0;font-size:.95rem;">파일 안에 들어가는 것</h3>';
     html += '<p class="muted" style="margin:6px 0 0;">달력 — 한 달이 달력 모양 그대로, 날짜 칸에 시간·내담자·회차·담당이 들어갑니다. 공휴일도 표시돼요.<br>'
-         + '일정 목록 — 한 줄에 하나씩, 보호자·연락처·메모까지. 정렬하거나 걸러 보기 좋아요.<br>'
-         + '담당별 집계 — 구성원별 상담 건수와 내담자 수.</p>';
+         + '상담사별 집계 — 1일부터 말일까지 날짜를 가로로 늘어놓고, 상담사마다 전체 한 줄과 상담타입마다 한 줄로 건수를 세어줍니다. 맨 위에는 센터 전체 합이 들어가요.</p>';
     html += '</div>';
     return html;
   }
