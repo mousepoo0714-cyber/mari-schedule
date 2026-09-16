@@ -425,11 +425,6 @@
     background:var(--accent-soft); color:var(--accent);
     font-weight:700; text-align:center; font-size:.95rem;
   }
-  .total-badge{
-    margin-left:5px; font-size:.68rem; font-weight:700; padding:1px 7px;
-    border-radius:999px; background:var(--bg); color:var(--ink-soft);
-    border:1px solid var(--line); white-space:nowrap;
-  }
   .age-badge{
     display:inline-block; margin-left:6px; font-size:.7rem; font-weight:700;
     padding:1px 7px; border-radius:999px;
@@ -2493,8 +2488,7 @@
       var cl = clientForEntry(e);
       html += '<div class="title">'+esc(e.title||'상담')+
         (cl?'<button class="client-info-btn" data-clientinfo="'+esc(cl.id)+'" title="내담자 정보">i</button>':'')+
-        (sn?'<span class="session-badge">'+sn.n+'회차</span>':'')+
-        (sn&&sn.total>1?'<span class="total-badge">총 '+sn.total+'회</span>':'')+'</div>';
+        (sn?'<span class="session-badge">'+sn.n+'회차</span>':'')+'</div>';
       if(admin) html += '<div class="who">'+esc(e.counselorName||'')+'</div>';
       if(e.memo) html += '<div class="memo">'+esc(e.memo)+'</div>';
       html += '</div>';
