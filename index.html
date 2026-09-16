@@ -414,6 +414,10 @@
   }
   .post-title{ font-size:1.3rem; }
   .post-byline{ font-size:.8rem; color:var(--ink-faint); margin-top:8px; }
+  .val-link{
+    color:var(--accent); text-decoration:underline; text-underline-offset:3px;
+    font-weight:600; word-break:break-all;
+  }
   .post-body{
     margin-top:18px; padding-top:18px; border-top:1px solid var(--line);
     white-space:pre-wrap; line-height:1.75; font-size:.95rem;
@@ -1234,6 +1238,7 @@
     repeatCount: 1,           // 새 일정 반복 횟수 (1~20, 첫 회 포함)
     repeatDows: [],           // 반복할 요일 (0=일 … 6=토)
     entriesError: '',         // 일정 구독이 실패하면 달력에 알려주기 위해
+    clientsError: '',         // 내담자 목록이 안 읽히면 이유를 화면에 보여주기 위해
     confirmBox: null,         // 앱 내부 확인창 {title, message, okLabel, danger, onOk}
     toast: '',                // 저장 결과 등 잠깐 보여주는 안내
     clients: [],              // [{id, orgId, name, birth, guardian, phone, email, counselorId, memo}]
@@ -1283,6 +1288,32 @@
   function fmtDate(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
   function todayStr(){ return fmtDate(today.getFullYear(), today.getMonth(), today.getDate()); }
   function fmtDateOnly(iso){ return iso ? String(iso).slice(0,10) : '-'; }
+
+  // 이메일·전화번호를 눌러서 바로 메일 앱 / 전화 앱으로 넘어가게 합니다.
+  //
+  // 기기에 따라 가는 곳이 달라요.
+  //  - 휴대폰·태블릿: mailto → 지메일 같은 기본 메일 앱이 열립니다.
+  //  - 컴퓨터: 지메일 웹 쓰기 화면을 새 탭으로 엽니다. 컴퓨터에는 메일
+  //    프로그램이 없는 경우가 많아서, mailto 로는 눌러도 아무 일이 안 일어나거든요.
+  var IS_TOUCH = (function(){
+    try { return window.matchMedia('(pointer: coarse)').matches; } catch(e){ return false; }
+  })();
+  function mailLink(addr){
+    var v = String(addr||'').trim();
+    if(!v) return '-';
+    if(IS_TOUCH){
+      return '<a class="val-link" href="mailto:' + esc(v) + '">' + esc(v) + '</a>';
+    }
+    var gmail = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(v);
+    return '<a class="val-link" href="' + esc(gmail) + '" target="_blank" rel="noopener">' + esc(v) + '</a>';
+  }
+  function telLink(num){
+    var v = String(num||'').trim();
+    if(!v) return '-';
+    var digits = v.replace(/[^0-9+]/g, '');
+    if(!digits) return esc(v);
+    return '<a class="val-link" href="tel:' + esc(digits) + '">' + esc(v) + '</a>';
+  }
   function normEmail(s){ return (s||'').trim().toLowerCase(); }
   function normPhone(s){ return (s||'').replace(/\D/g,''); }
 
@@ -1515,9 +1546,14 @@
     orgUnsubs.push(subscribeSchedule(null));
 
     var u4 = db.collection('clients').where('orgId','==',orgId).limit(1000).onSnapshot(function(qs){
+      state.clientsError = '';
       state.clients = rows(qs, 'name');
       render();
-    }, function(){ /* 내담자 목록만 비어 보일 뿐 일정에는 영향 없음 */ });
+    }, function(err){
+      // 조용히 빈 목록을 보여주면 "등록이 안 된 것"처럼 보여요. 이유를 띄웁니다.
+      state.clientsError = (err && err.code) || 'unavailable';
+      render();
+    });
     orgUnsubs.push(u4);
 
     var u5 = db.collection('boards').where('orgId','==',orgId).limit(200).onSnapshot(function(qs){
@@ -2625,8 +2661,8 @@
     html += '<div class="modal-head"><h3>'+esc(c.name)+'</h3><button class="modal-close" id="org-close">&times;</button></div>';
 
     html += '<div class="info-block">';
-    html += '<div class="info-row"><span class="k">이메일</span><span class="v">'+esc(c.email||'-')+'</span></div>';
-    html += '<div class="info-row"><span class="k">전화번호</span><span class="v">'+esc(c.phone||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">이메일</span><span class="v">'+mailLink(c.email)+'</span></div>';
+    html += '<div class="info-row"><span class="k">전화번호</span><span class="v">'+telLink(c.phone)+'</span></div>';
     html += '<div class="info-row"><span class="k">가입일</span><span class="v">'+esc(fmtDateOnly(c.joinedAt))+'</span></div>';
     html += '<div class="info-row"><span class="k">상태</span><span class="v">'+(c.active===false?'탈퇴':'활동 중')+'</span></div>';
     html += '</div>';
@@ -2690,6 +2726,11 @@
               : '나에게 배정된 내담자예요. 카드를 누르면 세부 정보를 볼 수 있어요.') +
       '</p></div>';
 
+    if(state.clientsError){
+      html += '<div class="note-msg" style="border-color:var(--danger);color:var(--danger);">' +
+        '내담자 목록을 불러오지 못했어요 ('+esc(state.clientsError)+'). ' +
+        '보안 규칙이 최신이 아니거나, 다른 센터 계정으로 로그인했을 수 있어요 — 등록한 내담자 정보는 사라지지 않았습니다.</div>';
+    }
     html += '<div class="clients-bar">';
     html += '<input id="client-search" placeholder="이름 · 보호자 · 연락처 검색" value="'+esc(state.clientSearch)+'"/>';
     if(manage) html += '<button class="btn btn-primary btn-sm" id="client-add" style="margin-top:0;width:auto;flex:none;">+ 내담자 추가</button>';
@@ -2699,6 +2740,13 @@
       html += '<div class="empty-note">'+(manage
         ? '아직 등록된 내담자가 없어요. "내담자 추가"를 눌러 등록해보세요.'
         : '나에게 배정된 내담자가 아직 없어요. 관리자에게 문의해주세요.')+'</div>';
+      // 구성원이 분명히 등록했는데 관리자 화면이 비어 있는 흔한 이유를 짚어줍니다.
+      if(isAdmin()){
+        html += '<div class="empty-note" style="margin-top:8px;font-size:.8rem;">' +
+          '구성원이 등록했는데 여기 안 보인다면, 그분이 <b>조직도</b>에 있는지 먼저 확인해주세요.<br>' +
+          '가입할 때 "관리자로 가입"을 체크하면 <b>별도의 센터</b>가 따로 만들어져서 서로의 자료가 보이지 않아요. ' +
+          '그럴 땐 그 계정을 탈퇴하고, 체크를 풀고 관리자 이메일을 넣어 다시 가입하면 됩니다.</div>';
+      }
     }
     html += '<div class="empty-note" id="client-none" hidden>검색 결과가 없어요.</div>';
 
@@ -2826,8 +2874,8 @@
     html += '<div class="info-block">';
     html += '<div class="info-row"><span class="k">생년월일</span><span class="v">'+esc(c.birth||'-')+'</span></div>';
     html += '<div class="info-row"><span class="k">보호자</span><span class="v">'+esc(c.guardian||'-')+'</span></div>';
-    html += '<div class="info-row"><span class="k">연락처</span><span class="v">'+esc(c.phone||'-')+'</span></div>';
-    html += '<div class="info-row"><span class="k">메일</span><span class="v">'+esc(c.email||'-')+'</span></div>';
+    html += '<div class="info-row"><span class="k">연락처</span><span class="v">'+telLink(c.phone)+'</span></div>';
+    html += '<div class="info-row"><span class="k">메일</span><span class="v">'+mailLink(c.email)+'</span></div>';
     html += '<div class="info-row"><span class="k">담당 상담사</span><span class="v">'+esc(cn||'-')+'</span></div>';
     html += '<div class="info-row"><span class="k">누적 상담</span><span class="v">'+total+'회</span></div>';
     html += '</div>';
