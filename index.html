@@ -414,6 +414,13 @@
   }
   .post-title{ font-size:1.3rem; }
   .post-byline{ font-size:.8rem; color:var(--ink-faint); margin-top:8px; }
+  .two-col{ display:flex; gap:10px; }
+  .two-col > .field{ flex:1; min-width:0; }
+  .two-col > .field:first-child{ flex:1.3; }
+  .type-badge{
+    font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:999px;
+    background:var(--accent-soft); color:var(--accent); white-space:nowrap;
+  }
   .val-link{
     color:var(--accent); text-decoration:underline; text-underline-offset:3px;
     font-weight:600; word-break:break-all;
@@ -1239,6 +1246,10 @@
     repeatDows: [],           // 반복할 요일 (0=일 … 6=토)
     entriesError: '',         // 일정 구독이 실패하면 달력에 알려주기 위해
     clientsError: '',         // 내담자 목록이 안 읽히면 이유를 화면에 보여주기 위해
+    // 상담타입은 권한자만 볼 수 있어야 해서 내담자 문서와 따로 보관합니다.
+    // (Firestore 는 "문서의 이 항목만 숨기기"가 안 돼요. 문서를 나눠야 합니다.)
+    clientTypes: {},          // clientId -> '일반' / '바우처01' ...
+    typeSubKey: null,
     confirmBox: null,         // 앱 내부 확인창 {title, message, okLabel, danger, onOk}
     toast: '',                // 저장 결과 등 잠깐 보여주는 안내
     clients: [],              // [{id, orgId, name, birth, guardian, phone, email, counselorId, memo}]
@@ -1358,6 +1369,8 @@
     state.members = [];
     state.entries = [];
     state.clients = [];
+    state.clientTypes = {};
+    clearTypeSub();
     state.boards = [];
     state.posts = [];
     state.comments = [];
@@ -1432,6 +1445,8 @@
       }
       state.account = acct;
       ensureOrgSubs(acct);
+      // 권한(manageSchedule)이 바뀌면 바로 반영되도록 따로 확인합니다
+      ensureTypeSub(acct);
       render();
     };
 
@@ -1573,6 +1588,47 @@
       render();
     }, function(){ /* 답글만 비어 보임 */ });
     orgUnsubs.push(u7);
+  }
+
+  // 상담타입은 권한자만 읽을 수 있습니다. 권한이 없는 구성원은 아예 구독하지
+  // 않아요 — 규칙에서도 막히지만, 애초에 요청조차 보내지 않습니다.
+  // 관리자가 도중에 권한을 주면 키가 바뀌어서 자동으로 다시 붙어요.
+  var typeUnsub = null;
+  function clearTypeSub(){
+    if(typeUnsub){ try{ typeUnsub(); }catch(e){} typeUnsub = null; }
+    state.typeSubKey = null;
+  }
+  function ensureTypeSub(acct){
+    var orgId = acct.role === 'admin' ? acct.id : acct.orgId;
+    var allowed = acct.role === 'admin' || acct.manageSchedule === true;
+    var key = orgId + ':' + (allowed ? 'y' : 'n');
+    if(state.typeSubKey === key) return;
+    clearTypeSub();
+    state.typeSubKey = key;
+    state.clientTypes = {};
+    if(!allowed || !orgId || !state.db) { render(); return; }
+    typeUnsub = state.db.collection('clienttypes').where('orgId','==',orgId).limit(1000)
+      .onSnapshot(function(qs){
+        var map = {};
+        qs.docs.forEach(function(d){
+          var v = d.data();
+          if(v && v.type) map[d.id] = v.type;
+        });
+        state.clientTypes = map;
+        render();
+      }, function(){ /* 못 읽으면 타입만 안 보일 뿐 나머지는 그대로 */ });
+  }
+  function typeOf(c){
+    return (c && state.clientTypes[c.id]) || '';
+  }
+  // 이미 쓰고 있는 상담타입을 추천 목록으로
+  function typeSuggestions(){
+    var seen = {}, out = [];
+    Object.keys(state.clientTypes).forEach(function(k){
+      var v = state.clientTypes[k];
+      if(v && !seen[v]){ seen[v] = true; out.push(v); }
+    });
+    return out.sort(function(a,b){ return a.localeCompare(b, 'ko'); });
   }
 
   /* ---------------- derived helpers ---------------- */
@@ -2799,6 +2855,8 @@
     var action = manage ? 'data-clientedit="'+esc(c.id)+'"' : 'data-clientinfo="'+esc(c.id)+'"';
     var html = '<button class="client-card" data-clientid="'+esc(c.id)+'" '+action+'>';
     html += '<div class="client-card-top"><span class="client-name">'+esc(c.name||'이름 없음')+'</span>';
+    var ctype = manage ? typeOf(c) : '';
+    if(ctype) html += '<span class="type-badge">'+esc(ctype)+'</span>';
     if(total) html += '<span class="session-badge">누적 '+total+'회</span>';
     html += '</div>';
     html += '<div class="client-meta">';
@@ -2848,7 +2906,13 @@
 
     var html = '<div class="overlay" id="client-overlay"><div class="modal">';
     html += '<div class="modal-head"><h3>'+(isNew?'내담자 추가':'내담자 정보')+'</h3><button class="modal-close" id="client-close">&times;</button></div>';
+    html += '<div class="two-col">';
     html += '<div class="field"><label for="cl-name">내담자 이름</label><input id="cl-name" placeholder="이름" value="'+esc(c.name||'')+'"/></div>';
+    html += '<div class="field"><label for="cl-type">상담타입</label>' +
+      '<div class="ac-wrap"><input id="cl-type" autocomplete="off" placeholder="예: 일반, 바우처01" value="'+esc(typeOf(c))+'"/>' +
+      '<div class="ac-list" id="cl-type-ac" hidden></div></div></div>';
+    html += '</div>';
+    html += '<div class="hint" style="margin:-6px 0 14px;">한 번 적어두면 다음부터 입력칸을 눌렀을 때 골라 쓸 수 있어요. 상담타입은 관리자와 일정 관리 권한자에게만 보입니다.</div>';
     html += '<div class="field"><label>생년월일</label><div class="ymd-group">' +
       tplBirthSelects(c.birth) + '</div></div>';
     html += '<div class="field"><label for="cl-guardian">보호자 이름</label><input id="cl-guardian" placeholder="선택 사항" value="'+esc(c.guardian||'')+'"/></div>';
@@ -2872,6 +2936,9 @@
     var html = '<div class="overlay overlay-top" id="clientview-overlay"><div class="modal" style="max-width:420px;">';
     html += '<div class="modal-head"><h3>'+esc(c.name||'내담자')+'</h3><button class="modal-close" id="clientview-close">&times;</button></div>';
     html += '<div class="info-block">';
+    if(canManageSchedule()){
+      html += '<div class="info-row"><span class="k">상담타입</span><span class="v">'+esc(typeOf(c)||'-')+'</span></div>';
+    }
     html += '<div class="info-row"><span class="k">생년월일</span><span class="v">'+esc(c.birth||'-')+'</span></div>';
     html += '<div class="info-row"><span class="k">보호자</span><span class="v">'+esc(c.guardian||'-')+'</span></div>';
     html += '<div class="info-row"><span class="k">연락처</span><span class="v">'+telLink(c.phone)+'</span></div>';
@@ -3274,7 +3341,7 @@
     var calendar = { name:'달력', landscape:true, cols:[26,26,26,26,26,26,26], rows:rows };
 
     /* --- 2. 일정 목록 --- */
-    var head = ['날짜','요일','시작','종료','내담자','회차','담당','보호자','연락처','메모'];
+    var head = ['날짜','요일','시작','종료','내담자','상담타입','회차','담당','보호자','연락처','메모'];
     var listRows = [{ h:22, cells: head.map(function(h){ return { v:h, s:'th' }; }) }];
     list.forEach(function(e){
       var d = new Date(e.date + 'T00:00:00');
@@ -3286,6 +3353,7 @@
         { v:(e.start||'').slice(0,5), s:'tdC' },
         { v:(e.end||'').slice(0,5), s:'tdC' },
         { v:e.title||'', s:'td' },
+        { v: c ? typeOf(c) : '', s:'tdC' },
         { v: s ? s.n : '', s:'tdC' },
         { v:e.counselorName || (memberById(e.counselorId)||{}).name || '', s:'td' },
         { v:(c && c.guardian) || '', s:'td' },
@@ -3294,9 +3362,9 @@
       ]});
     });
     if(list.length === 0){
-      listRows.push({ cells:[{ v:'이 달에는 등록된 일정이 없습니다.', s:'td', span:10 }] });
+      listRows.push({ cells:[{ v:'이 달에는 등록된 일정이 없습니다.', s:'td', span:11 }] });
     }
-    var flat = { name:'일정 목록', cols:[13,6,8,8,16,6,14,14,16,34], rows:listRows };
+    var flat = { name:'일정 목록', cols:[13,6,8,8,16,10,6,14,14,16,34], rows:listRows };
 
     /* --- 3. 담당별 집계 --- */
     var byWho = {};
@@ -4021,6 +4089,8 @@
     };
     [byEl, bmEl].forEach(function(el){ if(el) el.addEventListener('change', syncBirthDays); });
 
+    attachAutocomplete('cl-type', 'cl-type-ac', typeSuggestions);
+
     var delBtn = document.getElementById('client-delete');
     if(delBtn) delBtn.addEventListener('click', function(){
       askConfirm({
@@ -4028,9 +4098,12 @@
         message:(editing.name||'이 내담자')+' 정보를 삭제할까요?\n\n등록된 상담 일정은 지워지지 않고 그대로 남아요.',
         okLabel:'삭제',
         onOk: function(){
-          state.db.collection('clients').doc(editing.id).delete().then(function(){
-            state.clientEdit = null; render();
-          }).catch(function(){});
+          state.db.collection('clienttypes').doc(editing.id).delete().catch(function(){})
+            .then(function(){
+              return state.db.collection('clients').doc(editing.id).delete();
+            }).then(function(){
+              state.clientEdit = null; render();
+            }).catch(function(){});
         }
       });
     });
@@ -4065,12 +4138,26 @@
         updatedAt: new Date().toISOString()
       };
 
+      var typeEl = document.getElementById('cl-type');
+      var counselType = typeEl ? typeEl.value.trim() : '';
+
       state.clientBusy = true; state.clientError=''; render();
+
+      var ref = editing.id
+        ? state.db.collection('clients').doc(editing.id)
+        : state.db.collection('clients').doc();
       var op = editing.id
-        ? state.db.collection('clients').doc(editing.id).update(payload)
-        : state.db.collection('clients').doc().set(Object.assign({ createdAt:new Date().toISOString() }, payload));
+        ? ref.update(payload)
+        : ref.set(Object.assign({ createdAt:new Date().toISOString() }, payload));
 
       op.then(function(){
+        // 상담타입은 별도 문서로. 비우면 문서를 지웁니다.
+        var tref = state.db.collection('clienttypes').doc(ref.id);
+        return counselType
+          ? tref.set({ orgId: myOrgId(), clientId: ref.id, type: counselType,
+                       updatedAt: new Date().toISOString() })
+          : tref.delete().catch(function(){});
+      }).then(function(){
         state.clientBusy = false; state.clientEdit = null; render();
       }).catch(function(){
         state.clientBusy = false; state.clientError='저장에 실패했어요. 다시 시도해주세요.'; render();
