@@ -417,6 +417,19 @@
   .two-col{ display:flex; gap:10px; }
   .two-col > .field{ flex:1; min-width:0; }
   .two-col > .field:first-child{ flex:1.3; }
+  .three-col{ display:flex; gap:8px; }
+  .three-col > .field{ flex:1; min-width:0; }
+  .three-col input, .three-col select{ text-align:center; }
+  .readout{
+    border:1px solid var(--line); border-radius:10px; padding:10px 6px;
+    background:var(--accent-soft); color:var(--accent);
+    font-weight:700; text-align:center; font-size:.95rem;
+  }
+  .total-badge{
+    margin-left:5px; font-size:.68rem; font-weight:700; padding:1px 7px;
+    border-radius:999px; background:var(--bg); color:var(--ink-soft);
+    border:1px solid var(--line); white-space:nowrap;
+  }
   .age-badge{
     display:inline-block; margin-left:6px; font-size:.7rem; font-weight:700;
     padding:1px 7px; border-radius:999px;
@@ -1248,6 +1261,7 @@
     dayModal: null,
     editEntry: null,
     repeatCount: 1,           // 새 일정 반복 횟수 (1~20, 첫 회 포함)
+    priorTouched: false,      // 사전 방문 칸을 사람이 직접 고쳤는지 (자동 채움 중단용)
     repeatDows: [],           // 반복할 요일 (0=일 … 6=토)
     entriesError: '',         // 일정 구독이 실패하면 달력에 알려주기 위해
     clientsError: '',         // 내담자 목록이 안 읽히면 이유를 화면에 보여주기 위해
@@ -1854,6 +1868,17 @@
     return c ? ('c:'+c.id) : (nameKey(e && e.title) ? ('t:'+nameKey(e.title)) : '');
   }
 
+  // 앱을 쓰기 전에 이미 진행한 상담 횟수. 회차는 이 다음부터 세어집니다.
+  function priorOf(c){
+    var n = c ? parseInt(c.priorSessions, 10) : 0;
+    return (isNaN(n) || n < 0) ? 0 : n;
+  }
+  // clientKey('c:아이디') 로 저장돼 있어서, 키에서 내담자를 되찾아 사전 횟수를 봅니다.
+  function priorOfKey(k){
+    if(!k || k.slice(0,2) !== 'c:') return 0;
+    return priorOf(clientById(k.slice(2)));
+  }
+
   var sessionMap = {};
   function computeSessionNumbers(){
     var byClient = {}, map = {};
@@ -1867,7 +1892,10 @@
         var d = String(a.date||'').localeCompare(String(b.date||''));
         return d !== 0 ? d : String(a.start||'').localeCompare(String(b.start||''));
       });
-      list.forEach(function(e, i){ map[e.id] = { n:i+1, total:list.length }; });
+      var prior = priorOfKey(k);
+      list.forEach(function(e, i){
+        map[e.id] = { n: prior + i + 1, total: prior + list.length, prior: prior };
+      });
     });
     return map;
   }
@@ -2465,7 +2493,8 @@
       var cl = clientForEntry(e);
       html += '<div class="title">'+esc(e.title||'상담')+
         (cl?'<button class="client-info-btn" data-clientinfo="'+esc(cl.id)+'" title="내담자 정보">i</button>':'')+
-        (sn?'<span class="session-badge">'+sn.n+'회차</span>':'')+'</div>';
+        (sn?'<span class="session-badge">'+sn.n+'회차</span>':'')+
+        (sn&&sn.total>1?'<span class="total-badge">총 '+sn.total+'회</span>':'')+'</div>';
       if(admin) html += '<div class="who">'+esc(e.counselorName||'')+'</div>';
       if(e.memo) html += '<div class="memo">'+esc(e.memo)+'</div>';
       html += '</div>';
@@ -2508,11 +2537,25 @@
     html += '<div class="field"><label for="ef-date">날짜</label><input type="date" id="ef-date" value="'+esc(entry.date||'')+'"/></div>';
 
     if(isNew){
+      var priorNow = linked ? priorOf(linked) : 0;
+      var already = linked ? clientEntryCount(linked) : 0;
+      var finalNow = priorNow + already + state.repeatCount;
+
+      html += '<div class="three-col">';
       html += '<div class="field"><label for="ef-repeat">반복 횟수</label><select id="ef-repeat">';
       for(var r=1; r<=20; r++){
         html += '<option value="'+r+'"'+(state.repeatCount===r?' selected':'')+'>'+r+'회</option>';
       }
-      html += '</select><div class="hint">첫 일정을 포함한 전체 횟수예요.</div></div>';
+      html += '</select></div>';
+      html += '<div class="field"><label for="ef-prior">사전 방문</label>' +
+        '<input id="ef-prior" type="number" min="0" max="999" inputmode="numeric" placeholder="0" value="'+
+        (linked && priorNow ? priorNow : '')+'"/></div>';
+      html += '<div class="field"><label>최종 방문</label>' +
+        '<div class="readout" id="ef-final">'+(linked?finalNow+'회':'—')+'</div></div>';
+      html += '</div>';
+      html += '<div class="hint" style="margin:-4px 0 14px;">'+(linked
+        ? '사전 방문은 앱을 쓰기 전에 이미 진행한 횟수예요. 지금 등록한 일정은 그 다음 회차부터 세어집니다. (이미 등록된 일정 '+already+'회)'
+        : '사전 방문 횟수는 회원 관리에 등록된 내담자에게만 저장돼요.')+'</div>';
 
       if(state.repeatCount > 1){
         html += '<div class="field"><label>반복 요일</label><div class="dow-row">';
@@ -2780,6 +2823,14 @@
   function clientSessionTotal(c){
     if(!c) return 0;
     var k = 'c:'+c.id;
+    var n = priorOf(c);
+    state.entries.forEach(function(e){ if(clientKey(e)===k) n++; });
+    return n;
+  }
+  // 앱에 등록된 일정만 (사전 횟수 제외)
+  function clientEntryCount(c){
+    if(!c) return 0;
+    var k = 'c:'+c.id;
     var n = 0;
     state.entries.forEach(function(e){ if(clientKey(e)===k) n++; });
     return n;
@@ -2951,6 +3002,11 @@
       '<div class="ac-wrap"><input id="cl-type" autocomplete="off" placeholder="예: 일반, 바우처01" value="'+esc(typeOf(c))+'"/>' +
       '<div class="ac-list" id="cl-type-ac" hidden></div></div>' +
       '<div class="hint">한 번 적어두면 다음부터 입력칸을 눌렀을 때 골라 쓸 수 있어요. 관리자와 일정 관리 권한자에게만 보입니다.</div></div>';
+
+    html += '<div class="field"><label for="cl-prior">사전 방문 횟수</label>' +
+      '<input id="cl-prior" type="number" min="0" max="999" inputmode="numeric" placeholder="0" value="'+
+      (priorOf(c) ? priorOf(c) : '')+'"/>' +
+      '<div class="hint">앱을 쓰기 전에 이미 진행한 상담 횟수예요. 앞으로 등록하는 일정은 이 다음 회차부터 세어집니다.</div></div>';
     html += '<div class="field"><label for="cl-guardian">보호자 이름</label><input id="cl-guardian" placeholder="선택 사항" value="'+esc(c.guardian||'')+'"/></div>';
     html += '<div class="field"><label for="cl-phone">연락처</label><input id="cl-phone" type="tel" placeholder="010-0000-0000" value="'+esc(c.phone||'')+'"/></div>';
     html += '<div class="field"><label for="cl-email">메일 주소</label><input id="cl-email" type="email" placeholder="선택 사항" value="'+esc(c.email||'')+'"/></div>';
@@ -3654,6 +3710,7 @@
       var d0 = dateFromStr(state.dayModal);
       state.repeatCount = 1;
       state.repeatDows = d0 ? [d0.getDay()] : [];
+      state.priorTouched = false;
       state.editEntry = {
         id:null, date: state.dayModal, start:'', end:'', title:'', memo:'',
         counselorId: defaultId, counselorName: dc ? dc.name : (state.account.name||'')
@@ -3736,6 +3793,10 @@
         var hasOption = Array.prototype.some.call(counselorSel.options, function(o){ return o.value===cl.counselorId; });
         if(hasOption) counselorSel.value = cl.counselorId;
       }
+      // 사전 방문 횟수도 그 내담자에게 저장된 값으로 맞춰둡니다. 같은 이유로
+      // 화면을 다시 그리기 전에 입력칸에 직접 넣어야 살아남아요.
+      var pe = document.getElementById('ef-prior');
+      if(pe) pe.value = (cl && priorOf(cl)) ? priorOf(cl) : '';
       // `change` on a text input fires mid-blur; rebuilding the DOM right then
       // throws ("node to be removed is no longer a child"). Let blur finish.
       setTimeout(render, 0);
@@ -3757,6 +3818,32 @@
       }
       render();
     });
+
+    /* --- 사전 방문 / 최종 방문 --- */
+    var priorEl = document.getElementById('ef-prior');
+    var finalEl = document.getElementById('ef-final');
+    // 사용자가 직접 고친 적이 있으면 그 값을 건드리지 않습니다.
+    // 화면을 다시 그려도 유지돼야 해서 state 에 둡니다.
+    var syncFinal = function(){
+      // 창이 닫힌 뒤에 한 박자 늦게 불릴 수 있어서 매번 확인합니다
+      var titleNow = document.getElementById('ef-title');
+      if(!finalEl || !finalEl.isConnected || !titleNow) return;
+      var linkedNow = clientByName(titleNow.value.trim());
+      if(!linkedNow){ finalEl.textContent = '—'; return; }
+      // 이름을 치는 중에 내담자가 잡히면, 그 사람에게 저장된 사전 횟수를 채워줍니다.
+      // (화면을 다시 그리지 않아요 — 한글 입력이 끊기지 않게)
+      if(priorEl && !state.priorTouched){
+        priorEl.value = priorOf(linkedNow) ? priorOf(linkedNow) : '';
+      }
+      var typed = priorEl ? parseInt(priorEl.value, 10) : NaN;
+      var prior = isNaN(typed) || typed < 0 ? 0 : typed;
+      finalEl.textContent = (prior + clientEntryCount(linkedNow) + state.repeatCount) + '회';
+    };
+    if(priorEl) priorEl.addEventListener('input', function(){ state.priorTouched = true; syncFinal(); });
+    if(titleEl) titleEl.addEventListener('input', syncFinal);
+    // 입력값 복원(applyFormState)은 이 함수가 끝난 뒤에 일어나요. 그래서 한 박자 뒤에도 한 번 더.
+    syncFinal();
+    setTimeout(syncFinal, 0);
 
     var repeatEl = document.getElementById('ef-repeat');
     if(repeatEl) repeatEl.addEventListener('change', function(){
@@ -3826,6 +3913,20 @@
 
       var c = memberById(counselorId);
       var linkedClient = clientByName(title);
+
+      // 사전 방문 횟수는 내담자 정보에 저장합니다 (일정마다 따로 두면 어긋나요)
+      var priorWrite = Promise.resolve();
+      if(isNew && priorEl){
+        var typedPrior = parseInt(priorEl.value, 10);
+        typedPrior = isNaN(typedPrior) || typedPrior < 0 ? 0 : typedPrior;
+        if(typedPrior > 0 && !linkedClient){
+          return fail('사전 방문 횟수는 회원 관리에 등록된 내담자만 저장할 수 있어요. 이름을 확인하거나 사전 방문을 비워주세요.');
+        }
+        if(linkedClient && typedPrior !== priorOf(linkedClient)){
+          priorWrite = state.db.collection('clients').doc(linkedClient.id)
+            .update({ priorSessions: typedPrior }).catch(function(){});
+        }
+      }
       var payload = {
         orgId: myOrgId(),
         counselorId: counselorId,
@@ -3866,7 +3967,7 @@
       var seriesId = dates.length > 1
         ? ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2,8))
         : null;
-      var chain = Promise.resolve();
+      var chain = priorWrite;
       dates.forEach(function(d){
         chain = chain.then(function(){
           var body = Object.assign({ createdAt:new Date().toISOString() }, payload, { date:d });
@@ -4185,6 +4286,7 @@
         phone: document.getElementById('cl-phone').value.trim(),
         email: document.getElementById('cl-email').value.trim(),
         gender: (document.getElementById('cl-gender')||{}).value || '',
+        priorSessions: Math.max(0, parseInt((document.getElementById('cl-prior')||{}).value, 10) || 0),
         counselorId: document.getElementById('cl-counselor').value,
         memo: document.getElementById('cl-memo').value,
         updatedAt: new Date().toISOString()
