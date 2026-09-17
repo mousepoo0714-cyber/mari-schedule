@@ -2040,29 +2040,25 @@
     var n = c ? parseInt(c.priorSessions, 10) : 0;
     return (isNaN(n) || n < 0) ? 0 : n;
   }
-  // clientKey('c:아이디') 로 저장돼 있어서, 키에서 내담자를 되찾아 사전 횟수를 봅니다.
-  function priorOfKey(k){
-    if(!k || k.slice(0,2) !== 'c:') return 0;
-    return priorOf(clientById(k.slice(2)));
-  }
-
   var sessionMap = {};
+  // 달력에 붙는 회차는 "그 달에 몇 번째 방문인지"입니다.
+  // 처음부터의 누적 횟수는 내담자 정보(누적 상담)에서 봐요 —
+  // 달력은 여러 사람이 같이 보는 화면이라 누적 기록까지 드러내지 않습니다.
   function computeSessionNumbers(){
-    var byClient = {}, map = {};
+    var byMonth = {}, map = {};
     state.entries.forEach(function(e){
       var k = clientKey(e);
-      if(!k || !e.id) return;
-      (byClient[k] = byClient[k] || []).push(e);
+      var mo = String(e.date||'').slice(0,7);
+      if(!k || !e.id || !mo) return;
+      var kk = k + '|' + mo;
+      (byMonth[kk] = byMonth[kk] || []).push(e);
     });
-    Object.keys(byClient).forEach(function(k){
-      var list = byClient[k].slice().sort(function(a,b){
+    Object.keys(byMonth).forEach(function(kk){
+      var list = byMonth[kk].slice().sort(function(a,b){
         var d = String(a.date||'').localeCompare(String(b.date||''));
         return d !== 0 ? d : String(a.start||'').localeCompare(String(b.start||''));
       });
-      var prior = priorOfKey(k);
-      list.forEach(function(e, i){
-        map[e.id] = { n: prior + i + 1, total: prior + list.length, prior: prior };
-      });
+      list.forEach(function(e, i){ map[e.id] = { n: i+1, total: list.length }; });
     });
     return map;
   }
@@ -2828,7 +2824,7 @@
       out += '<div><div class="time">'+esc(e.start||'')+(e.end?(' – '+esc(e.end)):'')+'</div>';
       out += '<div class="title">'+esc(e.title||'상담')+
         (cl?'<button class="client-info-btn" data-clientinfo="'+esc(cl.id)+'" title="내담자 정보">i</button>':'')+
-        (sn?'<span class="session-badge">'+sn.n+'회차</span>':'')+'</div>';
+        (sn?'<span class="session-badge">이달 '+sn.n+'회차</span>':'')+'</div>';
       if(admin && !grouped) out += '<div class="who">'+esc(e.counselorName||'')+'</div>';
       if(e.memo) out += '<div class="memo">'+esc(e.memo)+'</div>';
       out += '</div>';
@@ -2979,7 +2975,7 @@
     if(!isNew){
       var sn = sessionOf(entry);
       var notes = [];
-      if(sn) notes.push(esc(entry.title)+' 내담자의 '+sn.n+'번째 상담이에요 (지금까지 '+sn.total+'회 등록).');
+      if(sn) notes.push(esc(entry.title)+' 내담자의 이번 달 '+sn.n+'번째 상담이에요 (이번 달 '+sn.total+'회 등록). 누적 상담 횟수는 내담자 정보에서 볼 수 있어요.');
       if(entry.seriesId){
         var siblings = state.entries.filter(function(e){ return e.seriesId===entry.seriesId; }).length;
         notes.push('반복으로 만든 '+siblings+'회 중 하나예요. 여기서 고치면 이 회차만 바뀌어요.');
