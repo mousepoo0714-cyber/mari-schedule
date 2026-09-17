@@ -187,7 +187,20 @@
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     margin-bottom:18px;
   }
-  .whoami{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .whoami{
+    display:flex; align-items:center; gap:10px; min-width:0;
+    background:none; border:none; padding:4px 6px 4px 0; margin:0;
+    font-family:inherit; color:inherit; text-align:left; cursor:pointer;
+    border-radius:12px;
+  }
+  .whoami:active{ background:var(--accent-soft); }
+  .whoami-text{ display:flex; flex-direction:column; align-items:flex-start; min-width:0; gap:3px; }
+  .whoami-name{ font-weight:700; }
+  .home-mark{
+    flex:none; display:flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:8px;
+    background:var(--accent-soft); color:var(--accent);
+  }
   .avatar{
     width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     font-weight:700; color:var(--accent-ink); background:var(--accent); font-family:'Noto Serif KR',serif;
@@ -2066,10 +2079,74 @@
   }
   setInterval(loadingWatchdogTick, 1500);
 
+  /* ---------------- 휴대폰 뒤로가기 ----------------
+     설치한 앱에서 뒤로가기를 누르면 앱이 통째로 꺼지던 문제를 고칩니다.
+     화면이 한 겹 깊어질 때마다 브라우저 기록에 한 칸씩 쌓아두고,
+     뒤로가기가 눌리면 그 한 겹만 닫아요. 달력까지 돌아온 뒤에 한 번 더
+     누르면 그때는 원래대로 앱이 닫힙니다. */
+  var NAV_LEVELS = [
+    { on:function(){ return state.panel !== 'calendar'; }, off:function(){ state.panel = 'calendar'; } },
+    { on:function(){ return !!state.boardId; },   off:function(){ state.boardId = null; } },
+    { on:function(){ return !!state.postId; },    off:function(){ state.postId = null; } },
+    { on:function(){ return !!state.menuOpen; },  off:function(){ state.menuOpen = false; } },
+    { on:function(){ return !!state.dayModal; },  off:function(){ state.dayModal = null; } },
+    { on:function(){ return !!state.editEntry; }, off:function(){ state.editEntry = null; } },
+    { on:function(){ return !!state.clientEdit; },off:function(){ state.clientEdit = null; } },
+    { on:function(){ return !!state.clientView; },off:function(){ state.clientView = null; } },
+    { on:function(){ return !!state.orgPopupId; },off:function(){ state.orgPopupId = null; } },
+    { on:function(){ return !!state.postEdit; },  off:function(){ state.postEdit = null; } },
+    { on:function(){ return !!state.boardEdit; }, off:function(){ state.boardEdit = null; } },
+    { on:function(){ return !!state.jobColorPick; }, off:function(){ state.jobColorPick = null; } },
+    { on:function(){ return !!state.confirmBox; },off:function(){ state.confirmBox = null; } }
+  ];
+  function navDepth(){
+    if(!state.session || !state.account || !isApproved(state.account)) return 0;
+    var n = 0;
+    NAV_LEVELS.forEach(function(l){ if(l.on()) n++; });
+    return n;
+  }
+  // 가장 바깥(마지막으로 열린) 한 겹만 닫습니다
+  function navCloseTop(){
+    for(var i = NAV_LEVELS.length - 1; i >= 0; i--){
+      if(NAV_LEVELS[i].on()){ NAV_LEVELS[i].off(); return true; }
+    }
+    return false;
+  }
+
+  var navLen = 0;            // 우리가 기록에 쌓아둔 칸 수
+  var navFromPop = false;    // 지금 뒤로가기 때문에 닫는 중인가
+  var navSyncing = false;    // 우리가 부른 history.go 로 생긴 popstate 인가
+
+  function syncHistory(){
+    var want = navDepth();
+    if(want === navLen) return;
+    if(want > navLen){
+      for(var i = navLen; i < want; i++){
+        try{ history.pushState({ mari:i+1 }, ''); }catch(e){}
+      }
+      navLen = want;
+      return;
+    }
+    var diff = navLen - want;
+    navLen = want;
+    if(navFromPop) return;         // 뒤로가기로 닫힌 거라 기록은 이미 줄었어요
+    navSyncing = true;
+    try{ history.go(-diff); }catch(e){ navSyncing = false; }
+  }
+
+  window.addEventListener('popstate', function(){
+    if(navSyncing){ navSyncing = false; return; }
+    if(navDepth() === 0) return;   // 달력 맨 앞 — 앱이 닫히도록 둡니다
+    navFromPop = true;
+    if(navCloseTop()) render();
+    navFromPop = false;
+  });
+
   function render(){
     var snap = captureFormState();
     renderInner();
     applyFormState(snap);
+    syncHistory();
   }
   function renderInner(){
     if(state.dbReady === null){ root.innerHTML = tplLoading(); bindLoading(); return; }
@@ -2367,11 +2444,18 @@
     var html = '<div class="wrap">';
 
     html += '<div class="topbar">';
-    html += '<div class="whoami"><div class="avatar">'+esc(initials)+'</div><div>';
-    html += '<div style="font-weight:700;">'+esc(meName)+'</div>';
+    // 어느 화면에 있든 여기를 누르면 달력으로 돌아옵니다.
+    html += '<button class="whoami" id="home-btn" aria-label="달력으로">';
+    html += '<span class="avatar">'+esc(initials)+'</span><span class="whoami-text">';
+    html += '<span class="whoami-name">'+esc(meName)+'</span>';
     var roleLabel = admin ? '관리자' : (canManageSchedule() ? '구성원 · 일정 관리' : '구성원');
     html += '<span class="role-badge">'+roleLabel+' · '+esc(orgName)+'</span>';
-    html += '</div></div>';
+    html += '</span>';
+    html += '<span class="home-mark" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ' +
+      'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg></span>';
+    html += '</button>';
     html += '<button class="hamburger-btn" id="menu-btn" aria-label="메뉴"><span></span><span></span><span></span></button>';
     html += '</div>';
 
@@ -3831,6 +3915,15 @@
 
   /* ---------------- bind: app shell / drawer ---------------- */
   function bindApp(){
+    var homeBtn = document.getElementById('home-btn');
+    if(homeBtn) homeBtn.addEventListener('click', function(){
+      state.panel = 'calendar';
+      state.boardId = null; state.postId = null;
+      state.clientFilter = null; state.orgPopupId = null;
+      state.menuOpen = false;
+      render();
+    });
+
     var menuBtn = document.getElementById('menu-btn');
     if(menuBtn) menuBtn.addEventListener('click', function(){ state.menuOpen = true; render(); });
 
