@@ -364,15 +364,19 @@
   }
 
   /* ---------- summary strip ---------- */
+  /* 달력 위의 얇은 한 줄 요약 */
   .summary-strip{
-    display:flex; gap:10px; overflow-x:auto; margin: 14px 0 4px; padding-bottom:2px;
+    display:flex; align-items:center; flex-wrap:wrap;
+    gap:6px 14px; margin: 12px 0 8px;
+    font-size:.8rem; color:var(--ink-soft);
   }
-  .summary-tile{
-    flex:none; min-width:132px; background:var(--surface); border:1px solid var(--line);
-    border-radius:12px; padding:11px 13px;
+  .summary-item{ display:inline-flex; align-items:baseline; gap:4px; white-space:nowrap; }
+  .summary-item + .summary-item{
+    padding-left:14px; border-left:1px solid var(--line);
   }
-  .summary-tile .num{ font-family:'Noto Serif KR',serif; font-size:1.5rem; font-weight:700; }
-  .summary-tile .lbl{ font-size:.74rem; color:var(--ink-soft); font-weight:600; margin-top:2px; }
+  .summary-item b{
+    font-family:'Noto Serif KR',serif; font-size:1rem; font-weight:700; color:var(--ink);
+  }
 
   /* ---------- modal ---------- */
   .overlay{
@@ -2595,17 +2599,16 @@
   function tplSummary(){
     var y = state.view.year, m = state.view.month;
     var prefix = y+'-'+pad2(m+1);
+    var t = todayStr();
     var inMonth = visibleEntries().filter(function(e){ return (e.date||'').indexOf(prefix)===0; });
-    var upcoming = visibleEntries().filter(function(e){ return e.date >= todayStr(); }).length;
-    var todays = visibleEntries().filter(function(e){ return e.date===todayStr(); }).length;
+    var todays = inMonth.filter(function(e){ return e.date === t; }).length;
+    // "예정"도 보고 있는 달 안에서만 셉니다. 지난 달을 보면 0이 돼요.
+    var upcoming = inMonth.filter(function(e){ return e.date >= t; }).length;
 
     var html = '<div class="summary-strip">';
-    html += '<div class="summary-tile"><div class="num">'+inMonth.length+'</div><div class="lbl">이번 달 일정</div></div>';
-    html += '<div class="summary-tile"><div class="num">'+todays+'</div><div class="lbl">오늘 일정</div></div>';
-    html += '<div class="summary-tile"><div class="num">'+upcoming+'</div><div class="lbl">예정된 일정</div></div>';
-    if(canManageSchedule()){
-      html += '<div class="summary-tile"><div class="num">'+state.members.filter(function(c){return c.active!==false;}).length+'</div><div class="lbl">등록 구성원</div></div>';
-    }
+    html += '<span class="summary-item"><b>'+inMonth.length+'</b> 이번 달</span>';
+    html += '<span class="summary-item"><b>'+todays+'</b> 오늘</span>';
+    html += '<span class="summary-item"><b>'+upcoming+'</b> 예정</span>';
     html += '</div>';
     return html;
   }
