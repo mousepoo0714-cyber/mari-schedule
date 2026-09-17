@@ -113,10 +113,11 @@
     font-family:'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
     font-variant-numeric: tabular-nums;
     padding-inline: 20px;
-    padding-block: calc(20px + env(safe-area-inset-top, 0px)) calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-block: 0 calc(56px + env(safe-area-inset-bottom, 0px));
   }
   h1,h2,h3{ font-family:'Noto Serif KR', serif; font-weight:700; margin:0; text-wrap:balance; }
   .wrap{ max-width: 980px; margin: 0 auto; }
+  .auth-wrap{ padding-top: calc(20px + env(safe-area-inset-top, 0px)); }
   button{ font-family:inherit; cursor:pointer; }
   input, select{ font-family:inherit; }
 
@@ -136,7 +137,7 @@
   .small{ font-size:.78rem; }
 
   /* ---------- setup / auth ---------- */
-  .auth-shell{ max-width: 420px; margin: 6vh auto 0; }
+  .auth-shell{ max-width: 420px; margin: 6vh auto 0; padding-top: env(safe-area-inset-top, 0px); }
   .auth-shell .card{ padding: 30px 26px; }
   .field{ margin-top:16px; }
   .field label{ display:block; font-size:.85rem; font-weight:600; color:var(--ink-soft); margin-bottom:6px; }
@@ -185,8 +186,15 @@
   /* ---------- top bar ---------- */
   .topbar{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
-    margin-bottom:18px;
+    /* 좌우 20px 을 뚫고 나가 화면 끝까지 닿는 띠가 됩니다 */
+    margin: 0 -20px 18px;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 20px 10px;
+    background:var(--surface);
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:40;
   }
+  /* 배너 전체가 달력으로 가는 버튼이에요 */
+  .topbar .whoami{ flex:1; }
   .whoami{
     display:flex; align-items:center; gap:10px; min-width:0;
     background:none; border:none; padding:4px 6px 4px 0; margin:0;
@@ -194,6 +202,9 @@
     border-radius:12px;
   }
   .whoami:active{ background:var(--accent-soft); }
+  @media (min-width: 720px){
+    .topbar{ border-radius:0 0 16px 16px; }
+  }
   .whoami-text{ display:flex; flex-direction:column; align-items:flex-start; min-width:0; gap:3px; }
   .whoami-name{ font-weight:700; }
   .home-mark{
@@ -2170,7 +2181,7 @@
 
   /* ---------------- templates: loading / unavailable ---------------- */
   function tplLoading(){
-    var html = '<div class="wrap"><div class="center-screen"><div style="text-align:center;">';
+    var html = '<div class="wrap auth-wrap"><div class="center-screen"><div style="text-align:center;">';
     html += '<div class="muted">불러오는 중…</div>';
     if(state.loadingStuck){
       html += '<div class="note-msg" style="margin-top:14px;max-width:320px;">예상보다 오래 걸리고 있어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.</div>';
