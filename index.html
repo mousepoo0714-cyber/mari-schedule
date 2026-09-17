@@ -378,6 +378,41 @@
     font-family:'Noto Serif KR',serif; font-size:1rem; font-weight:700; color:var(--ink);
   }
 
+  /* 달력 아래 최근 글 */
+  .recent-wrap{ margin-top:22px; }
+  .recent-list{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; overflow:hidden;
+  }
+  .recent-row{
+    display:flex; align-items:center; gap:8px; width:100%;
+    padding:11px 13px; border:none; background:none; text-align:left;
+    font-family:inherit; color:var(--ink); font-size:.85rem;
+    border-bottom:1px solid var(--line);
+  }
+  .recent-row:last-child{ border-bottom:none; }
+  .recent-row:active{ background:var(--surface-2); }
+  .recent-row.pinned{ background:var(--accent-soft); }
+  .recent-board{
+    flex:none; max-width:82px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-size:.7rem; font-weight:700; color:var(--ink-faint);
+    border:1px solid var(--line); border-radius:999px; padding:2px 8px;
+  }
+  .recent-row.pinned .recent-board{
+    color:var(--accent); border-color:var(--accent); background:var(--surface);
+  }
+  .recent-title{
+    flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-weight:600;
+  }
+  .recent-reply{
+    flex:none; font-size:.7rem; font-weight:700; color:var(--accent);
+    background:var(--accent-soft); border-radius:999px; padding:1px 7px;
+  }
+  .recent-row.pinned .recent-reply{ background:var(--surface); }
+  .recent-when{ flex:none; font-size:.72rem; color:var(--ink-faint); }
+  .recent-empty{ padding:16px 13px; font-size:.82rem; color:var(--ink-faint); text-align:center; }
+
   /* 날짜 팝업 — 구성원별 묶음 */
   .day-group{ margin-bottom:6px; }
   .day-group-head{
@@ -2609,11 +2644,71 @@
     }
     html += tplSummary();
     html += tplCalendar(y,m);
+    html += tplRecentPosts();
 
     if(state.dayModal){ html += tplDayModal(state.dayModal); }
     if(state.editEntry){ html += tplEditModal(state.editEntry); }
 
     return html;
+  }
+
+  /* ---------------- 달력 아래 최근 글 ----------------
+     게시판을 가리지 않고 최신 글 4개를 보여주고, 맨 아래 한 줄은
+     가장 마지막으로 고정한 글을 붙박이로 둡니다. */
+  var RECENT_N = 4;
+
+  function tplRecentPosts(){
+    if(!state.boards.length) return '';
+
+    var sorted = state.posts.slice().sort(function(a,b){
+      return String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+    });
+    // 가장 마지막으로 "고정"한 글 (고정한 시각 기준)
+    var pinned = state.posts.filter(function(p){ return p.pinned; })
+      .sort(function(a,b){
+        return String(b.pinnedAt||b.createdAt||'').localeCompare(String(a.pinnedAt||a.createdAt||''));
+      })[0] || null;
+
+    // 아래 고정 줄과 겹치지 않게 빼고 4개를 뽑아요
+    var recent = sorted.filter(function(p){ return !pinned || p.id !== pinned.id; })
+      .slice(0, RECENT_N);
+
+    if(!recent.length && !pinned) return '';
+
+    var row = function(p, isPin){
+      var b = boardById(p.boardId);
+      var reply = commentsOfPost(p.id).length;
+      var out = '<button class="recent-row'+(isPin?' pinned':'')+'" data-recent="'+esc(p.id)+'">';
+      out += '<span class="recent-board">'+esc(isPin ? '고정' : ((b && b.name) || '게시판'))+'</span>';
+      out += '<span class="recent-title">'+esc(p.title||'(제목 없음)')+'</span>';
+      if(reply) out += '<span class="recent-reply">'+reply+'</span>';
+      out += '<span class="recent-when">'+esc(shortDateTime(p.createdAt))+'</span>';
+      out += '</button>';
+      return out;
+    };
+
+    var html = '<div class="recent-wrap">';
+    html += '<div class="section-head"><h3>최근 글</h3></div>';
+    html += '<div class="recent-list">';
+    if(recent.length){
+      recent.forEach(function(p){ html += row(p, false); });
+    } else {
+      html += '<div class="recent-empty">아직 올라온 글이 없어요.</div>';
+    }
+    if(pinned) html += row(pinned, true);
+    html += '</div></div>';
+    return html;
+  }
+
+  // 9/17 12:02 처럼 짧게
+  function shortDateTime(iso){
+    var d = iso ? new Date(iso) : null;
+    if(!d || isNaN(d)) return '';
+    var t = new Date();
+    var sameDay = d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
+    return sameDay
+      ? (pad2(d.getHours())+':'+pad2(d.getMinutes()))
+      : ((d.getMonth()+1)+'/'+d.getDate());
   }
 
   function tplSummary(){
@@ -3991,6 +4086,17 @@
 
   /* ---------------- bind: app shell / drawer ---------------- */
   function bindApp(){
+    document.querySelectorAll('[data-recent]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var p = postById(btn.getAttribute('data-recent'));
+        if(!p) return;
+        state.panel = 'boards';
+        state.boardId = p.boardId;
+        state.postId = p.id;
+        render();
+      });
+    });
+
     var homeBtn = document.getElementById('home-btn');
     if(homeBtn) homeBtn.addEventListener('click', function(){
       state.panel = 'calendar';
