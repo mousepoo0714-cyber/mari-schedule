@@ -414,6 +414,28 @@
   }
   .post-title{ font-size:1.3rem; }
   .post-byline{ font-size:.8rem; color:var(--ink-faint); margin-top:8px; }
+  .pending-mark{
+    display:inline-block; padding:5px 14px; border-radius:999px;
+    background:var(--accent-soft); color:var(--accent);
+    font-size:.8rem; font-weight:700;
+  }
+  .wait-count{
+    font-family:'Noto Sans KR',sans-serif; font-size:.78rem; font-weight:700;
+    color:var(--accent-ink); background:var(--accent);
+    border-radius:999px; padding:1px 9px; margin-left:6px;
+  }
+  .wait-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .wait-card{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--surface); border:1px solid var(--accent);
+    border-radius:12px; padding:12px 14px;
+  }
+  .wait-card > div:first-child{ flex:1; min-width:0; }
+  .wait-name{ font-weight:700; font-size:.92rem; }
+  .wait-meta{ font-size:.76rem; color:var(--ink-faint); margin-top:2px; word-break:break-all; }
+  .wait-actions{ display:flex; gap:8px; flex:none; }
+  .wait-actions .btn{ margin-top:0; width:auto; }
+
   .two-col{ display:flex; gap:10px; }
   .two-col > .field{ flex:1; min-width:0; }
   .two-col > .field:first-child{ flex:1.3; }
@@ -1359,6 +1381,17 @@
     return '<a class="val-link" href="tel:' + esc(digits) + '">' + esc(v) + '</a>';
   }
   function normEmail(s){ return (s||'').trim().toLowerCase(); }
+  // 관리자 이메일 -> 조직을 찾는 작은 열쇠 문서의 id.
+  // 계정 목록 전체를 뒤지지 않아도 되게 하려고 따로 둡니다.
+  function orgKeyOf(email){
+    return normEmail(email).replace(/[^a-z0-9@._+-]/g, '_').slice(0, 180);
+  }
+  // 관리자는 늘 승인된 상태. 예전에 가입한 구성원(승인 항목이 아예 없는 계정)도
+  // 승인된 것으로 봅니다 — 이 기능을 켠다고 쓰던 분들이 막히면 안 되니까요.
+  function isApproved(acct){
+    if(!acct) return false;
+    return acct.role === 'admin' || acct.approved !== false;
+  }
   function normPhone(s){ return (s||'').replace(/\D/g,''); }
 
   function loadColorMode(){
@@ -1480,6 +1513,7 @@
       ensureOrgSubs(acct);
       // 권한(manageSchedule)이 바뀌면 바로 반영되도록 따로 확인합니다
       ensureTypeSub(acct);
+      if(acct.role === 'admin' && acct.orgEmailKey !== orgKeyOf(acct.email)) ensureOrgKey(acct);
       render();
     };
 
@@ -1528,6 +1562,8 @@
   function ensureOrgSubs(acct){
     var orgId = acct.role === 'admin' ? acct.id : acct.orgId;
     if(!orgId) return;
+    // 승인 대기 중에는 달력·내담자·게시판을 불러오지 않아요.
+    if(!isApproved(acct)){ clearOrgSubs(); attachAdminOnly(acct, orgId); return; }
     if(state.orgIdSubscribed === orgId) return;
     clearOrgSubs();
     state.orgIdSubscribed = orgId;
@@ -1631,6 +1667,36 @@
     if(typeUnsub){ try{ typeUnsub(); }catch(e){} typeUnsub = null; }
     state.typeSubKey = null;
   }
+  // 승인 대기 화면에도 센터 이름은 보여주고 싶어서, 관리자 문서만 따로 읽어둡니다.
+  function attachAdminOnly(acct, orgId){
+    if(state.orgIdSubscribed === 'pending:'+orgId) return;
+    state.orgIdSubscribed = 'pending:'+orgId;
+    var u = state.db.doc('accounts/'+orgId).onSnapshot(function(snap){
+      state.orgAdmin = snap.exists ? Object.assign({id:snap.id}, snap.data()) : null;
+      render();
+    }, function(){});
+    orgUnsubs.push(u);
+  }
+
+  // 관리자 이메일 -> 조직 열쇠 문서를 항상 최신으로 맞춰둡니다.
+  // 예전에 가입한 관리자에게도 로그인할 때 자동으로 만들어져요.
+  function ensureOrgKey(acct){
+    if(!state.db || !acct || acct.role === 'member') return Promise.resolve();
+    var key = orgKeyOf(acct.email);
+    if(!key) return Promise.resolve();
+    var db = state.db;
+    var old = acct.orgEmailKey;
+    var chain = (old && old !== key)
+      ? db.doc('orgkeys/'+old).delete().catch(function(){})
+      : Promise.resolve();
+    return chain.then(function(){
+      return db.doc('orgkeys/'+key).set({ orgId:acct.id, orgName:acct.orgName || '' });
+    }).then(function(){
+      if(old === key) return;
+      return db.doc('accounts/'+acct.id).update({ orgEmailKey:key });
+    }).catch(function(){});
+  }
+
   function ensureTypeSub(acct){
     var orgId = acct.role === 'admin' ? acct.id : acct.orgId;
     var allowed = acct.role === 'admin' || acct.manageSchedule === true;
@@ -1728,9 +1794,13 @@
   }
 
   // Members bucketed by 직무; anyone without one lands in a trailing group.
+  // 승인 대기 중인 사람은 조직도 카드(직무 묶음)에는 넣지 않아요 — 위에 따로 보여줍니다.
+  function approvedMembers(){
+    return state.members.filter(function(m){ return m.approved !== false; });
+  }
   function groupedMembers(){
     var groups = [], index = {}, unassigned = { name:'', members:[] };
-    state.members.forEach(function(c){
+    approvedMembers().forEach(function(c){
       var j = jobOf(c);
       if(!j){ unassigned.members.push(c); return; }
       var k = jobKey(j);
@@ -2011,6 +2081,11 @@
       bindAuth();
       return;
     }
+    if(!isApproved(state.account)){
+      root.innerHTML = tplPending();
+      bindPending();
+      return;
+    }
     sessionMap = computeSessionNumbers();
     root.innerHTML = tplApp();
     bindApp();
@@ -2188,22 +2263,30 @@
       state.auth.signUp(emailLower, password).then(function(newUid){
         uid = newUid;
         if(wantsAdmin){
+          var myKey = orgKeyOf(emailLower);
           return db.doc('accounts/'+uid).set({
             role:'admin', name:name, email:email, emailLower:emailLower, phone:phone,
-            orgName:orgName, createdAt:new Date().toISOString()
+            orgName:orgName, orgEmailKey:myKey, createdAt:new Date().toISOString()
+          }).then(function(){
+            // 구성원이 "관리자 이메일"로 우리 센터를 찾을 때 쓰는 열쇠 문서
+            return db.doc('orgkeys/'+myKey).set({ orgId:uid, orgName:orgName });
           });
         }
-        return db.collection('accounts').where('emailLower','==',adminEmailInput).limit(1).get().then(function(qs){
-          if(qs.empty || qs.docs[0].data().role !== 'admin'){ throw {code:'no-admin'}; }
-          return qs.docs[0].id;
+        return db.doc('orgkeys/'+orgKeyOf(adminEmailInput)).get().then(function(snap){
+          if(!snap.exists) throw {code:'no-admin'};
+          return Object.assign({}, snap.data()).orgId;
         }).then(function(orgId){
-          return db.collection('accounts').where('orgId','==',orgId).get().then(function(memberQs){
-            return db.doc('accounts/'+uid).set({
-              role:'member', name:name, email:email, emailLower:emailLower, phone:phone,
-              orgId:orgId, position:'', job:'', duties:'', manageSchedule:false, active:true,
-              order: memberQs.size, colorIndex: memberQs.size % TAG_COUNT,
-              joinedAt:new Date().toISOString()
-            });
+          if(!orgId) throw {code:'no-admin'};
+          // 아직 내 계정 문서가 없어서 다른 계정은 못 읽어요.
+          // 순서는 가입 시각으로, 색은 uid 로 정합니다.
+          var seed = 0;
+          for(var si=0; si<uid.length; si++) seed += uid.charCodeAt(si);
+          return db.doc('accounts/'+uid).set({
+            role:'member', name:name, email:email, emailLower:emailLower, phone:phone,
+            orgId:orgId, position:'', job:'', duties:'', manageSchedule:false, active:true,
+            approved:false,          // 관리자가 승인해야 들어올 수 있어요
+            order: Date.now(), colorIndex: seed % TAG_COUNT,
+            joinedAt:new Date().toISOString()
           });
         });
       }).then(function(){
@@ -2294,7 +2377,7 @@
 
     if(state.panel === 'orgchart'){
       html += tplOrgChart();
-      if(admin && state.orgPopupId){ html += tplOrgPopup(memberById(state.orgPopupId)); }
+      if(canManageSchedule() && state.orgPopupId){ html += tplOrgPopup(memberById(state.orgPopupId)); }
       if(admin && state.jobColorPick){ html += tplJobColorModal(state.jobColorPick); }
     } else if(state.panel === 'boards'){
       html += tplBoardsPanel();
@@ -2318,6 +2401,28 @@
 
     html += '</div>';
     return html;
+  }
+
+  // 승인 전에는 달력도 게시판도 열리지 않습니다. 이 화면 하나만 보여요.
+  function tplPending(){
+    var a = state.account || {};
+    var org = (state.orgAdmin && state.orgAdmin.orgName) || '';
+    var html = '<div class="wrap auth-wrap">';
+    html += '<div class="card" style="padding:28px 22px;text-align:center;">';
+    html += '<div class="pending-mark">승인 대기</div>';
+    html += '<h2 style="margin:14px 0 0;">가입 신청이 접수됐어요</h2>';
+    html += '<p class="muted" style="margin:10px 0 0;line-height:1.7;">' +
+      esc(a.name||'') + ' 님, ' + (org ? esc(org)+' ' : '') + '관리자가 승인하면 바로 쓸 수 있어요.<br>' +
+      '승인되면 이 화면이 저절로 넘어갑니다 — 새로고침하지 않으셔도 돼요.</p>';
+    html += '<div class="note-msg" style="margin-top:18px;text-align:left;">' +
+      '승인이 늦어지면 관리자에게 직접 알려주세요. 잘못 가입하셨다면 아래에서 로그아웃하시면 됩니다.</div>';
+    html += '<button class="btn btn-line" id="pending-logout" style="margin-top:16px;">로그아웃</button>';
+    html += '</div></div>';
+    return html;
+  }
+  function bindPending(){
+    var b = document.getElementById('pending-logout');
+    if(b) b.addEventListener('click', function(){ logout(); });
   }
 
   function tplDrawer(){
@@ -2677,6 +2782,25 @@
     }
     html += '<div class="org-connector"></div>';
 
+    if(admin){
+      var waiting = state.members.filter(function(m){ return m.approved === false; });
+      if(waiting.length){
+        html += '<div class="section-head"><h3>승인 대기 <span class="wait-count">'+waiting.length+'</span></h3></div>';
+        html += '<div class="wait-list">';
+        waiting.forEach(function(w){
+          html += '<div class="wait-card">';
+          html += '<div><div class="wait-name">'+esc(w.name||'이름 없음')+'</div>';
+          html += '<div class="wait-meta">'+esc(w.email||'')+(w.phone?' · '+esc(w.phone):'')+'</div></div>';
+          html += '<div class="wait-actions">';
+          html += '<button class="btn btn-danger btn-sm" data-reject="'+esc(w.id)+'">거절</button>';
+          html += '<button class="btn btn-primary btn-sm" data-approve="'+esc(w.id)+'">승인</button>';
+          html += '</div></div>';
+        });
+        html += '</div>';
+        html += '<div class="hint" style="margin:-4px 0 18px;">승인해야 달력과 게시판을 볼 수 있어요. 거절하면 계정이 완전히 지워집니다.</div>';
+      }
+    }
+
     if(state.members.length===0){
       html += '<div class="empty-note">아직 가입한 구성원이 없어요.</div>';
     }
@@ -2720,14 +2844,16 @@
 
   function tplOrgCard(c, admin){
     var idx = colorIndexFor(c);
-    var tag = admin ? 'button' : 'div';
-    var html = '<'+tag+' class="org-card"'+(admin?(' data-orgpopup="'+esc(c.id)+'"'):'')+'>';
+    // 연락처는 관리자와 일정 관리 권한자만 볼 수 있어요. 일반 구성원 카드는 눌리지 않습니다.
+    var canOpen = canManageSchedule();
+    var tag = canOpen ? 'button' : 'div';
+    var html = '<'+tag+' class="org-card"'+(canOpen?(' data-orgpopup="'+esc(c.id)+'"'):'')+'>';
     html += '<div class="org-card-top"><span class="dot" style="background:var(--tag-'+idx+')"></span><span class="org-name">'+esc(c.name)+'</span>';
     if(c.active===false) html += '<span class="badge-inactive">탈퇴</span>';
     html += '</div>';
     if(c.manageSchedule) html += '<span class="badge-manage">일정 관리 권한</span>';
     html += '<span class="org-position'+(c.position?'':' unset')+'">'+esc(c.position||'포지션 미지정')+'</span>';
-    if(admin){ html += '<div class="org-meta">눌러서 가입 정보 보기 ›</div>'; }
+    if(canOpen){ html += '<div class="org-meta">눌러서 '+(admin?'가입 정보 보기':'연락처 보기')+' ›</div>'; }
     html += '</'+tag+'>';
     return html;
   }
@@ -2801,6 +2927,14 @@
     html += '<div class="info-row"><span class="k">가입일</span><span class="v">'+esc(fmtDateOnly(c.joinedAt))+'</span></div>';
     html += '<div class="info-row"><span class="k">상태</span><span class="v">'+(c.active===false?'탈퇴':'활동 중')+'</span></div>';
     html += '</div>';
+
+    if(!isAdmin()){
+      // 일정 관리 권한자는 연락처만 봅니다. 고치는 건 관리자만.
+      html += '<div class="hint">연락처만 볼 수 있어요. 포지션·직무·권한은 관리자가 정합니다.</div>';
+      html += '<div class="modal-actions"><button class="btn btn-line btn-grow" id="org-close2">닫기</button></div>';
+      html += '</div></div>';
+      return html;
+    }
 
     html += '<div class="field"><label>포지션 / 직책</label><input id="oe-position" placeholder="예: 수석상담사, 인턴상담사" value="'+esc(c.position||'')+'"/></div>';
     html += '<div class="field"><label>직무</label>' +
@@ -4069,12 +4203,42 @@
 
   /* ---------------- bind: org chart ---------------- */
   function bindOrgChart(){
-    if(!isAdmin()){ return; }
+    if(!canManageSchedule()){ return; }
 
+    // 연락처 보기는 일정 관리 권한자까지, 아래 편집 기능은 관리자만
     document.querySelectorAll('[data-orgpopup]').forEach(function(btn){
       btn.addEventListener('click', function(){
         state.orgPopupId = btn.getAttribute('data-orgpopup');
+        state.orgResetMsg = '';
         render();
+      });
+    });
+    bindOrgPopup();
+    if(!isAdmin()){ return; }
+
+    document.querySelectorAll('[data-approve]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-approve');
+        btn.disabled = true;
+        state.db.collection('accounts').doc(id).update({ approved:true })
+          .then(function(){ showToast('승인했어요. 이제 앱을 쓸 수 있어요.'); })
+          .catch(function(){ btn.disabled = false; showToast('승인에 실패했어요. 다시 시도해주세요.'); });
+      });
+    });
+    document.querySelectorAll('[data-reject]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-reject');
+        var who = memberById(id);
+        askConfirm({
+          title:'가입 거절',
+          message:(who && who.name ? who.name+' 님의' : '이')+' 가입 신청을 거절할까요?\n\n계정이 완전히 지워지고, 같은 이메일로 다시 가입할 수 있어요.',
+          okLabel:'거절',
+          onOk: function(){
+            state.db.collection('accounts').doc(id).delete()
+              .then(function(){ showToast('가입 신청을 거절했어요.'); })
+              .catch(function(){ showToast('처리에 실패했어요.'); });
+          }
+        });
       });
     });
 
@@ -4108,15 +4272,14 @@
 
       // 별도의 인증 창구로 계정을 만들어요. 기본 창구로 만들면 새 계정으로
       // 로그인이 바뀌면서 관리자가 튕겨나갑니다.
-      db.collection('accounts').where('emailLower','==',emailLower).limit(1).get().then(function(existing){
-        if(!existing.empty){ throw {code:'dup-email'}; }
-        return state.auth.signUpSecondary(emailLower, password);
-      }).then(function(uid){
+      // 같은 이메일이 이미 있는지는 인증 쪽이 알려줍니다 (email-already-in-use)
+      state.auth.signUpSecondary(emailLower, password).then(function(uid){
         return db.collection('accounts').where('orgId','==',orgId).get().then(function(memberQs){
           var count = memberQs.size;
           return db.doc('accounts/'+uid).set({
             role:'member', name:name, email:email, emailLower:emailLower, phone:phone,
             orgId:orgId, position:'', job:job, duties:'', manageSchedule:false, active:true,
+            approved:true,           // 관리자가 직접 만든 계정이라 승인 절차가 필요 없어요
             order:count, colorIndex: count % TAG_COUNT, joinedAt:new Date().toISOString()
           });
         });
@@ -4138,7 +4301,6 @@
       });
     });
 
-    bindOrgPopup();
     bindJobColorModal();
   }
 
@@ -4169,6 +4331,8 @@
     overlay.addEventListener('click', function(ev){ if(ev.target===overlay){ state.orgPopupId=null; render(); } });
     var closeBtn = document.getElementById('org-close');
     if(closeBtn) closeBtn.addEventListener('click', function(){ state.orgPopupId=null; render(); });
+    var closeBtn2 = document.getElementById('org-close2');
+    if(closeBtn2) closeBtn2.addEventListener('click', function(){ state.orgPopupId=null; render(); });
 
     attachAutocomplete('oe-job', 'oe-job-ac', jobSuggestions);
 
@@ -4723,13 +4887,11 @@
       var db = state.db;
       var myId = state.account.id;
 
-      var checkDup = emailLower === normEmail(state.account.email)
-        ? Promise.resolve({empty:true})
-        : db.collection('accounts').where('emailLower','==',emailLower).limit(1).get();
-
-      checkDup.then(function(qs){
-        if(!qs.empty){ throw {code:'dup-email'}; }
-        return db.doc('accounts/'+myId).update({ orgName:org, name:name, email:email, emailLower:emailLower, phone:phone });
+      db.doc('accounts/'+myId).update({ orgName:org, name:name, email:email, emailLower:emailLower, phone:phone })
+      .then(function(){
+        // 관리자가 이메일이나 센터 이름을 바꾸면 열쇠 문서도 따라 옮겨줍니다
+        if(!isAdmin()) return;
+        return ensureOrgKey({ id:myId, email:email, orgName:org, orgEmailKey:state.account.orgEmailKey });
       }).then(function(){
         state.settingsBusy = false; state.settingsMsg = '저장했어요.'; render();
       }).catch(function(err){
