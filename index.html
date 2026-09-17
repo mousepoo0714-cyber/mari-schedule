@@ -3231,6 +3231,25 @@
     state.entries.forEach(function(e){ if(clientKey(e)===k) n++; });
     return n;
   }
+  // 한 아이가 두 선생님께 오는 경우가 있어서 담당은 최대 2명까지 둡니다.
+  // 예전에 넣은 자료에는 counselorId2 가 아예 없고, 그건 1명으로 봅니다.
+  function counselorIdsOf(c){
+    if(!c) return [];
+    var out = [];
+    if(c.counselorId) out.push(c.counselorId);
+    if(c.counselorId2 && c.counselorId2 !== c.counselorId) out.push(c.counselorId2);
+    return out;
+  }
+  function isCounselorOf(c, memberId){
+    return counselorIdsOf(c).indexOf(memberId) !== -1;
+  }
+  function counselorNamesOf(c){
+    return counselorIdsOf(c).map(function(id){
+      var m = memberById(id);
+      return m ? m.name : '';
+    }).filter(Boolean);
+  }
+
   function counselorNameOf(c){
     var m = c && c.counselorId ? memberById(c.counselorId) : null;
     return m ? m.name : '';
@@ -3244,7 +3263,7 @@
     // A plain 구성원 only ever sees the 내담자 assigned to them, read-only.
     var list = manage
       ? clientsSorted()
-      : clientsSorted().filter(function(c){ return c.counselorId === state.account.id; });
+      : clientsSorted().filter(function(c){ return isCounselorOf(c, state.account.id); });
 
     var html = '<div class="page-head"><h2>회원 관리</h2>' +
       '<p class="muted small" style="margin-top:4px;">' +
@@ -3287,12 +3306,16 @@
     // 관리자 화면은 달력과 같은 방식 — 전체 / 구성원별 칩으로 걸러봐요.
     var known = {};
     state.members.forEach(function(m){ known[m.id] = true; });
-    var unassigned = list.filter(function(c){ return !c.counselorId || !known[c.counselorId]; });
+    var unassigned = list.filter(function(c){
+      var ids = counselorIdsOf(c).filter(function(id){ return known[id]; });
+      return ids.length === 0;
+    });
 
     html += '<div class="chiprow">';
     html += '<button class="chip'+(state.clientFilter?'':' active')+'" data-clientfilter="">전체 '+list.length+'</button>';
     state.members.forEach(function(m){
-      var n = list.filter(function(c){ return c.counselorId === m.id; }).length;
+      // 담당이 둘인 아이는 두 사람 칩에 모두 들어갑니다
+      var n = list.filter(function(c){ return isCounselorOf(c, m.id); }).length;
       if(!n) return;
       var ci = colorIndexFor(m);
       var on = state.clientFilter === m.id;
@@ -3310,7 +3333,7 @@
     if(state.clientFilter === NO_COUNSELOR){
       shown = unassigned;
     } else if(state.clientFilter){
-      shown = list.filter(function(c){ return c.counselorId === state.clientFilter; });
+      shown = list.filter(function(c){ return isCounselorOf(c, state.clientFilter); });
     }
 
     html += '<div class="client-grid">';
@@ -3373,10 +3396,16 @@
 
   function tplClientEditModal(c){
     var isNew = !c.id;
-    var memberOptions = '<option value="">미지정</option>';
-    state.members.filter(function(m){ return m.active!==false; }).forEach(function(m){
-      memberOptions += '<option value="'+esc(m.id)+'"'+(c.counselorId===m.id?' selected':'')+'>'+esc(m.name)+'</option>';
-    });
+    var pickList = state.members.filter(function(m){ return m.active!==false; });
+    var optionsFor = function(sel){
+      var out = '<option value="">미지정</option>';
+      pickList.forEach(function(m){
+        out += '<option value="'+esc(m.id)+'"'+(sel===m.id?' selected':'')+'>'+esc(m.name)+'</option>';
+      });
+      return out;
+    };
+    var memberOptions = optionsFor(c.counselorId);
+    var hasSecond = !!(c.counselorId2 && c.counselorId2 !== c.counselorId);
 
     var html = '<div class="overlay" id="client-overlay"><div class="modal">';
     html += '<div class="modal-head"><h3>'+(isNew?'내담자 추가':'내담자 정보')+'</h3><button class="modal-close" id="client-close">&times;</button></div>';
@@ -3407,6 +3436,12 @@
     html += '<div class="field"><label for="cl-phone">연락처</label><input id="cl-phone" type="tel" placeholder="010-0000-0000" value="'+esc(c.phone||'')+'"/></div>';
     html += '<div class="field"><label for="cl-email">메일 주소</label><input id="cl-email" type="email" placeholder="선택 사항" value="'+esc(c.email||'')+'"/></div>';
     html += '<div class="field"><label for="cl-counselor">담당 상담사</label><select id="cl-counselor">'+memberOptions+'</select></div>';
+    html += '<div class="form-check"><input type="checkbox" id="cl-two"'+(hasSecond?' checked':'')+'/>' +
+      '<label for="cl-two">담당 상담사 2명' +
+      '<span class="check-sub">한 아이가 두 선생님께 오는 경우예요. 체크하면 두 분 모두의 회원 관리에 이 아이가 보입니다.</span></label></div>';
+    html += '<div class="field"'+(hasSecond?'':' hidden')+' id="cl-counselor2-field">' +
+      '<label for="cl-counselor2">두 번째 담당 상담사</label>' +
+      '<select id="cl-counselor2">'+optionsFor(c.counselorId2||'')+'</select></div>';
     html += '<div class="field"><label for="cl-memo">메모</label><textarea id="cl-memo" rows="4" placeholder="상담 특이사항, 주의할 점 등">'+esc(c.memo||'')+'</textarea></div>';
     if(state.clientError) html += '<div class="err-msg">'+esc(state.clientError)+'</div>';
     html += '<div class="modal-actions">';
@@ -3434,7 +3469,9 @@
     html += '<div class="info-row"><span class="k">보호자</span><span class="v">'+esc(c.guardian||'-')+'</span></div>';
     html += '<div class="info-row"><span class="k">연락처</span><span class="v">'+telLink(c.phone)+'</span></div>';
     html += '<div class="info-row"><span class="k">메일</span><span class="v">'+mailLink(c.email)+'</span></div>';
-    html += '<div class="info-row"><span class="k">담당 상담사</span><span class="v">'+esc(cn||'-')+'</span></div>';
+    var names = counselorNamesOf(c);
+    html += '<div class="info-row"><span class="k">담당 상담사</span><span class="v">'+
+      esc(names.length ? names.join(' · ') : (cn||'-'))+'</span></div>';
     html += '<div class="info-row"><span class="k">누적 상담</span><span class="v">'+total+'회</span></div>';
     html += '</div>';
     if(c.memo){
@@ -4282,9 +4319,13 @@
       // A registered client carries their 담당 상담사 across automatically.
       // Set it on the element before re-rendering, since form state captured
       // at render time is what wins afterwards.
-      if(cl && cl.counselorId && counselorSel){
-        var hasOption = Array.prototype.some.call(counselorSel.options, function(o){ return o.value===cl.counselorId; });
-        if(hasOption) counselorSel.value = cl.counselorId;
+      if(cl && counselorSel){
+        // 담당이 둘이면, 지금 쓰는 사람이 담당 중 한 명일 때는 본인을 고릅니다.
+        var want = isCounselorOf(cl, state.account.id) ? state.account.id : cl.counselorId;
+        if(want){
+          var hasOption = Array.prototype.some.call(counselorSel.options, function(o){ return o.value===want; });
+          if(hasOption) counselorSel.value = want;
+        }
       }
       // 사전 방문 횟수도 그 내담자에게 저장된 값으로 맞춰둡니다. 같은 이유로
       // 화면을 다시 그리기 전에 입력칸에 직접 넣어야 살아남아요.
@@ -4707,7 +4748,7 @@
     var addBtn = document.getElementById('client-add');
     if(addBtn) addBtn.addEventListener('click', function(){
       state.clientError = '';
-      state.clientEdit = { name:'', birth:'', guardian:'', phone:'', email:'', counselorId:'', memo:'' };
+      state.clientEdit = { name:'', birth:'', guardian:'', phone:'', email:'', counselorId:'', counselorId2:'', memo:'' };
       render();
     });
 
@@ -4764,6 +4805,12 @@
     });
     if(bdEl) bdEl.addEventListener('change', syncAge);
 
+    var twoEl = document.getElementById('cl-two');
+    var secondField = document.getElementById('cl-counselor2-field');
+    if(twoEl && secondField) twoEl.addEventListener('change', function(){
+      secondField.hidden = !twoEl.checked;
+    });
+
     attachAutocomplete('cl-type', 'cl-type-ac', typeSuggestions);
 
     var delBtn = document.getElementById('client-delete');
@@ -4811,6 +4858,14 @@
         gender: (document.getElementById('cl-gender')||{}).value || '',
         priorSessions: Math.max(0, parseInt((document.getElementById('cl-prior')||{}).value, 10) || 0),
         counselorId: document.getElementById('cl-counselor').value,
+        counselorId2: (function(){
+          var two = document.getElementById('cl-two');
+          var sel = document.getElementById('cl-counselor2');
+          if(!two || !two.checked || !sel) return '';
+          var v = sel.value;
+          // 같은 사람을 두 번 고르면 한 명으로 봅니다
+          return (v && v !== document.getElementById('cl-counselor').value) ? v : '';
+        })(),
         memo: document.getElementById('cl-memo').value,
         updatedAt: new Date().toISOString()
       };
