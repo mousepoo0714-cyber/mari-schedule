@@ -436,6 +436,11 @@
     color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:999px;
     font-family:'Noto Sans KR',sans-serif;
   }
+  .reply-badge{
+    display:inline-block; margin-left:7px; font-size:.68rem; font-weight:700; vertical-align:1px;
+    color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:999px;
+    font-family:'Noto Sans KR',sans-serif; white-space:nowrap;
+  }
   .post-row-meta{ font-size:.77rem; color:var(--ink-faint); }
   .post-view{
     background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px;
@@ -3470,7 +3475,9 @@
     html += '<div class="post-list">';
     posts.forEach(function(p){
       html += '<button class="post-row'+(p.pinned?' pinned':'')+'" data-postopen="'+esc(p.id)+'">';
-      html += '<div class="post-row-title">'+(p.pinned?'<span class="pin-badge">고정</span>':'')+esc(p.title||'(제목 없음)')+'</div>';
+      var reply = commentsOfPost(p.id).length;
+      html += '<div class="post-row-title">'+(p.pinned?'<span class="pin-badge">고정</span>':'')+esc(p.title||'(제목 없음)')+
+        (reply?'<span class="reply-badge">답글 '+reply+'</span>':'')+'</div>';
       html += '<div class="post-row-meta">'+esc(p.authorName||'')+' · '+esc(fmtDateTime(p.createdAt))+'</div>';
       html += '</button>';
     });
