@@ -378,6 +378,21 @@
     font-family:'Noto Serif KR',serif; font-size:1rem; font-weight:700; color:var(--ink);
   }
 
+  /* 날짜 팝업 — 구성원별 묶음 */
+  .day-group{ margin-bottom:6px; }
+  .day-group-head{
+    display:flex; align-items:center; gap:7px;
+    padding:9px 4px 7px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:var(--surface); z-index:2;
+  }
+  .day-group-name{ font-weight:700; font-size:.88rem; }
+  .day-group-count{
+    margin-left:auto; font-size:.72rem; font-weight:700;
+    color:var(--accent); background:var(--accent-soft);
+    border-radius:999px; padding:1px 9px;
+  }
+  .day-entry.in-group{ padding-left:19px; }
+
   /* ---------- modal ---------- */
   .overlay{
     position:fixed; inset:0; background:rgba(30,27,20,.42); display:flex; align-items:flex-end;
@@ -2705,28 +2720,68 @@
     var dayHol = holidayOf(dateStr);
     html += '<div class="modal-head"><h3>'+dateStr+(dayHol?'<span class="holiday-tag">'+esc(dayHol)+'</span>':'')+'</h3><button class="modal-close" id="day-close">&times;</button></div>';
     if(list.length===0){ html += '<div class="empty-note">등록된 일정이 없어요.</div>'; }
-    list.forEach(function(e){
-      var idx = colorIndexFor(memberById(e.counselorId));
+
+    // 한 줄(일정 하나) 그리기. grouped 면 담당자 이름은 묶음 제목에 이미 있어요.
+    var entryRow = function(e, grouped){
       var canEdit = admin || e.counselorId === state.account.id;
-      html += '<div class="day-entry">';
-      html += '<span class="dot" style="background:var(--tag-'+idx+')"></span>';
-      html += '<div><div class="time">'+esc(e.start||'')+(e.end?(' – '+esc(e.end)):'')+'</div>';
       var sn = sessionOf(e);
       var cl = clientForEntry(e);
-      html += '<div class="title">'+esc(e.title||'상담')+
+      var out = '<div class="day-entry'+(grouped?' in-group':'')+'">';
+      if(!grouped){
+        out += '<span class="dot" style="background:var(--tag-'+colorIndexFor(memberById(e.counselorId))+')"></span>';
+      }
+      out += '<div><div class="time">'+esc(e.start||'')+(e.end?(' – '+esc(e.end)):'')+'</div>';
+      out += '<div class="title">'+esc(e.title||'상담')+
         (cl?'<button class="client-info-btn" data-clientinfo="'+esc(cl.id)+'" title="내담자 정보">i</button>':'')+
         (sn?'<span class="session-badge">'+sn.n+'회차</span>':'')+'</div>';
-      if(admin) html += '<div class="who">'+esc(e.counselorName||'')+'</div>';
-      if(e.memo) html += '<div class="memo">'+esc(e.memo)+'</div>';
-      html += '</div>';
+      if(admin && !grouped) out += '<div class="who">'+esc(e.counselorName||'')+'</div>';
+      if(e.memo) out += '<div class="memo">'+esc(e.memo)+'</div>';
+      out += '</div>';
       if(canEdit){
-        html += '<div class="day-entry-actions">';
-        html += '<button class="icon-btn" data-edit="'+esc(e.id)+'" title="수정">✎</button>';
-        html += '<button class="icon-btn" data-del="'+esc(e.id)+'" title="삭제">🗑</button>';
-        html += '</div>';
+        out += '<div class="day-entry-actions">';
+        out += '<button class="icon-btn" data-edit="'+esc(e.id)+'" title="수정">✎</button>';
+        out += '<button class="icon-btn" data-del="'+esc(e.id)+'" title="삭제">🗑</button>';
+        out += '</div>';
       }
-      html += '</div>';
+      out += '</div>';
+      return out;
+    };
+
+    // 여러 구성원의 일정이 섞여 있으면 사람별로 묶어서 보여줍니다.
+    // 묶음 안에서는 시간 순서 그대로예요.
+    var byWho = {}, whoOrder = [];
+    list.forEach(function(e){
+      var k = e.counselorId || '__none__';
+      if(!byWho[k]){ byWho[k] = []; whoOrder.push(k); }
+      byWho[k].push(e);
     });
+    var grouped = admin && whoOrder.length > 1;
+
+    if(!grouped){
+      list.forEach(function(e){ html += entryRow(e, false); });
+    } else {
+      // 조직도 순서대로 (조직도에 없는 사람은 뒤로)
+      whoOrder.sort(function(a,b){
+        var ma = memberById(a), mb = memberById(b);
+        var oa = ma && ma.order != null ? ma.order : 1e15;
+        var ob = mb && mb.order != null ? mb.order : 1e15;
+        if(oa !== ob) return oa - ob;
+        return String((ma&&ma.name)||'').localeCompare(String((mb&&mb.name)||''), 'ko');
+      });
+      whoOrder.forEach(function(k){
+        var rows = byWho[k];
+        var m = memberById(k);
+        var nm = (m && m.name) || rows[0].counselorName || '담당 미지정';
+        html += '<div class="day-group">';
+        html += '<div class="day-group-head">';
+        html += '<span class="dot" style="background:var(--tag-'+colorIndexFor(m)+')"></span>';
+        html += '<span class="day-group-name">'+esc(nm)+'</span>';
+        html += '<span class="day-group-count">'+rows.length+'건</span>';
+        html += '</div>';
+        rows.forEach(function(e){ html += entryRow(e, true); });
+        html += '</div>';
+      });
+    }
     html += '<button class="btn btn-primary" id="day-add">+ 새 일정 추가</button>';
     html += '</div></div>';
     return html;
