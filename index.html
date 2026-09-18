@@ -640,26 +640,31 @@
     margin-left:7px; font-size:.7rem; font-weight:700; vertical-align:2px;
     color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:999px;
   }
-  /* ---- 검사 표시 ----
-     검사는 이어서 오는 상담과 달리 1회로 끝나요. 그래서 일정마다 따로 표시하고,
-     엑셀에서도 상담타입과 별개의 줄로 셉니다. */
-  .label-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+  /* ---- 검사 / 해석 표시 ----
+     둘 다 이어서 오는 상담과 달리 1회로 끝나요. 그래서 일정마다 따로 표시하고,
+     엑셀에서도 상담타입과 별개의 줄로, 단가도 각각 따로 둡니다.
+     색은 검사 = 황금색(tag-1), 해석 = 보라색(tag-4) 으로 구분해요. */
+  .label-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
   .label-row label{ margin-bottom:0; }
+  .label-checks{ display:flex; align-items:center; gap:6px; flex:none; }
   .label-check{
-    display:inline-flex; align-items:center; gap:6px; flex:none; margin-bottom:0;
+    display:inline-flex; align-items:center; gap:7px; flex:none; margin-bottom:0;
     font-size:.78rem; font-weight:700; color:var(--ink-soft); cursor:pointer;
     padding:3px 10px 3px 8px; border:1px solid var(--line); border-radius:999px;
-    background:var(--surface-2);
+    background:var(--surface-2); --kind:var(--tag-1); --kind-soft:var(--tag-1-soft);
   }
+  .label-check.interp{ --kind:var(--tag-4); --kind-soft:var(--tag-4-soft); }
   .label-check input[type=checkbox]{
-    width:15px; height:15px; margin:0; accent-color:var(--tag-1); flex:none;
+    width:15px; height:15px; margin:0; accent-color:var(--kind); flex:none;
   }
-  .label-check.on{ color:var(--tag-1); border-color:var(--tag-1); background:var(--tag-1-soft); }
-  .test-badge{
+  .label-check.on{ color:var(--kind); border-color:var(--kind); background:var(--kind-soft); }
+  .kind-badge{
     margin-left:7px; font-size:.7rem; font-weight:800; vertical-align:2px;
     color:var(--tag-1); background:var(--tag-1-soft); padding:2px 8px; border-radius:999px;
   }
-  .cal-test{ flex:none; font-weight:800; color:var(--tag-1); }
+  .kind-badge.interp{ color:var(--tag-4); background:var(--tag-4-soft); }
+  .cal-kind{ flex:none; font-weight:800; color:var(--tag-1); }
+  .cal-kind.interp{ color:var(--tag-4); }
   .confirm-msg{ margin:0; color:var(--ink-soft); line-height:1.65; white-space:pre-line; }
   .modal{
     background:var(--surface); width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
@@ -1377,7 +1382,13 @@
   var NO_JOB = '__nojob__';   // filter sentinel for "직무 미지정"
   var NO_COUNSELOR = '__nocounselor__';   // 회원 관리의 "담당 미지정" 필터
   var NO_TYPE = '(타입 미지정)';
-  var TEST_TYPE = '검사';     // 엑셀 집계에서 상담타입과 별개로 세는 줄
+  // 검사와 해석은 이어지는 상담과 달리 1회로 끝나요.
+  // 엑셀 집계에서 상담타입과 섞지 않고 각각 한 줄씩, 단가도 따로 둡니다.
+  var TEST_TYPE = '검사';
+  var INTERP_TYPE = '해석';
+  // 일정 하나에는 둘 중 하나만 붙습니다 ('' 이면 보통 상담)
+  function kindOf(e){ return e && e.isInterp ? 'interp' : (e && e.isTest ? 'test' : ''); }
+  function kindLabel(e){ var k = kindOf(e); return k==='test' ? TEST_TYPE : (k==='interp' ? INTERP_TYPE : ''); }
 
   /* ---------------- state ---------------- */
   var state = {
@@ -2071,8 +2082,8 @@
       var k = clientKey(e);
       var mo = String(e.date||'').slice(0,7);
       if(!k || !e.id || !mo) return;
-      // 검사는 1회로 끝나니 상담 회차에 끼워 세지 않아요 (달력에는 "검사"로 표시됩니다)
-      if(e.isTest) return;
+      // 검사·해석은 1회로 끝나니 상담 회차에 끼워 세지 않아요 (달력에는 따로 표시됩니다)
+      if(kindOf(e)) return;
       var kk = k + '|' + mo;
       (byMonth[kk] = byMonth[kk] || []).push(e);
     });
@@ -2795,7 +2806,7 @@
           html += '<span class="cal-chip" style="--tag:var(--tag-'+idx+');--tag-soft:var(--tag-'+idx+'-soft)">' +
             (e.start ? '<span class="cal-chip-time">'+esc(e.start)+'</span>' : '') +
             '<span class="cal-chip-name">'+esc(e.title||'상담')+'</span>' +
-            (e.isTest ? '<span class="cal-test" title="검사">검</span>' : '') +
+            (kindOf(e) ? '<span class="cal-kind'+(kindOf(e)==='interp'?' interp':'')+'" title="'+kindLabel(e)+'">'+kindLabel(e).slice(0,1)+'</span>' : '') +
             (sn ? '<span class="cal-n">'+sn.n+'</span>' : '') +
             '</span>';
         });
@@ -2848,7 +2859,7 @@
       out += '<div><div class="time">'+esc(e.start||'')+(e.end?(' – '+esc(e.end)):'')+'</div>';
       out += '<div class="title">'+esc(e.title||'상담')+
         (cl?'<button class="client-info-btn" data-clientinfo="'+esc(cl.id)+'" title="내담자 정보">i</button>':'')+
-        (e.isTest?'<span class="test-badge">검사</span>':'')+
+        (kindOf(e)?'<span class="kind-badge'+(kindOf(e)==='interp'?' interp':'')+'">'+kindLabel(e)+'</span>':'')+
         (sn?'<span class="session-badge">이달 '+sn.n+'회차</span>':'')+'</div>';
       if(admin && !grouped) out += '<div class="who">'+esc(e.counselorName||'')+'</div>';
       if(e.memo) out += '<div class="memo">'+esc(e.memo)+'</div>';
@@ -2919,19 +2930,23 @@
       html += '<div class="field"><label>구성원</label><select id="ef-counselor">'+memberOptions+'</select></div>';
     }
     // 검사는 1회로 끝나는 일정이라, 내담자의 상담타입과 별개로 일정마다 표시합니다.
-    var isTestNow = !!entry.isTest;
+    var kindNow = kindOf(entry);
     html += '<div class="field">';
-    html += '<div class="label-row"><label for="ef-title">제목 / 내담자</label>' +
-      '<label class="label-check'+(isTestNow?' on':'')+'" for="ef-istest">' +
-      '<input type="checkbox" id="ef-istest"'+(isTestNow?' checked':'')+'/>검사</label></div>';
+    html += '<div class="label-row"><label for="ef-title">제목 / 내담자</label><div class="label-checks">' +
+      '<label class="label-check'+(kindNow==='test'?' on':'')+'" for="ef-istest">' +
+      '<input type="checkbox" id="ef-istest"'+(kindNow==='test'?' checked':'')+'/>검사</label>' +
+      '<label class="label-check interp'+(kindNow==='interp'?' on':'')+'" for="ef-isinterp">' +
+      '<input type="checkbox" id="ef-isinterp"'+(kindNow==='interp'?' checked':'')+'/>해석</label>' +
+      '</div></div>';
     html += '<div class="ac-wrap"><input id="ef-title" autocomplete="off" placeholder="내담자 이름" value="'+esc(entry.title||'')+'"/>' +
       '<div class="ac-list" id="ef-title-ac" hidden></div></div>';
     var linked = clientForEntry(entry);
     html += '<div class="hint">'+(linked
       ? '등록된 내담자 <b>'+esc(linked.name)+'</b> 정보와 연결돼요.'
       : '회원 관리에 등록된 이름을 입력하면 내담자 정보와 자동으로 연결돼요.')+'</div>';
-    html += '<div class="hint" id="ef-istest-hint"'+(isTestNow?'':' hidden')+'>' +
-      '이 일정은 <b>검사</b>로 저장돼요. 내담자의 상담타입은 그대로 두고, 일정 내려받기에서 검사만 따로 셉니다.</div>';
+    html += '<div class="hint" id="ef-kind-hint"'+(kindNow?'':' hidden')+'>' +
+      '이 일정은 <b id="ef-kind-name">'+esc(kindLabel(entry)||'검사')+'</b>(으)로 저장돼요. ' +
+      '내담자의 상담타입은 그대로 두고, 일정 내려받기에서 따로 세고 단가도 따로 매깁니다.</div>';
     html += '</div>';
     html += '<div class="field"><label for="ef-date">날짜</label><input type="date" id="ef-date" value="'+esc(entry.date||'')+'"/></div>';
 
@@ -3844,7 +3859,7 @@
     var t = (e.start||'').slice(0,5);
     var s = sessionMap[e.id];
     var line = (t ? t + ' ' : '') + (e.title || '(이름 없음)');
-    if(e.isTest) line += ' [검사]';
+    if(kindOf(e)) line += ' [' + kindLabel(e) + ']';
     else if(s && s.total > 1) line += ' ' + s.n + '회';
     var who = e.counselorName || (memberById(e.counselorId) || {}).name || '';
     if(who) line += ' / ' + who;
@@ -3912,15 +3927,18 @@
 
     // 이 달에 쓰인 상담타입 모으기.
     // 검사는 1회로 끝나는 일정이라 내담자의 상담타입과 섞지 않고 따로 셉니다.
-    var typeSet = {}, hasNoType = false, hasTest = false;
+    var typeSet = {}, hasNoType = false, hasKind = {};
     list.forEach(function(e){
-      if(e.isTest){ hasTest = true; return; }
+      var k = kindLabel(e);
+      if(k){ hasKind[k] = true; return; }
       var t = typeOf(clientForEntry(e));
       if(t) typeSet[t] = true; else hasNoType = true;
     });
     var typeList = Object.keys(typeSet).sort(function(a,b){ return a.localeCompare(b, 'ko'); });
-    // 상담타입 이름이 마침 "검사" 여도 줄이 두 번 생기지 않게 합니다
-    if(hasTest && typeList.indexOf(TEST_TYPE) === -1) typeList.push(TEST_TYPE);
+    // 상담타입 이름이 마침 "검사"·"해석" 이어도 줄이 두 번 생기지 않게 합니다
+    [TEST_TYPE, INTERP_TYPE].forEach(function(k){
+      if(hasKind[k] && typeList.indexOf(k) === -1) typeList.push(k);
+    });
     if(hasNoType) typeList.push(NO_TYPE);
 
     // 상담사 -> 타입 -> 날짜 -> 건수
@@ -3941,7 +3959,7 @@
     var centerTotal = emptyTally();
     list.forEach(function(e){
       var who = e.counselorName || (memberById(e.counselorId)||{}).name || '(담당 미지정)';
-      var ty = e.isTest ? TEST_TYPE : (typeOf(clientForEntry(e)) || NO_TYPE);
+      var ty = kindLabel(e) || typeOf(clientForEntry(e)) || NO_TYPE;
       var d = parseInt(String(e.date||'').slice(8,10), 10);
       if(!d) return;
       [bucket(who), centerTotal].forEach(function(t){
@@ -3960,7 +3978,7 @@
 
     var aggRows = [];
     aggRows.push({ h:26, cells:[{ v: orgName + ' · ' + y + '년 ' + (m+1) + '월 상담사별 집계', s:'title', span:WIDTH }] });
-    aggRows.push({ h:16, cells:[{ v:'상담타입별로 몇 회씩 진행했는지 하루 단위로 나눠 적었어요. 빈 칸은 0회입니다.', s:'sub', span:WIDTH }] });
+    aggRows.push({ h:16, cells:[{ v:'상담타입별로 몇 회씩 진행했는지 하루 단위로 나눠 적었어요. 빈 칸은 0회입니다. 검사·해석은 1회성이라 상담타입과 별개의 줄로 셉니다.', s:'sub', span:WIDTH }] });
     aggRows.push({ h:16, cells:[{ v:'노란 칸(맨 위 "센터 전체"의 단가)에 금액을 넣으면 아래 상담사 표에도 같이 반영되고, 금액이 자동으로 계산됩니다.', s:'sub', span:WIDTH }] });
 
     function headRow(){
@@ -4378,13 +4396,24 @@
        화면을 다시 그리지 않고 표시만 바꿉니다 (이름을 한글로 치는 중에 끊기지 않게).
        다시 그릴 때를 대비해 state 에도 넣어둬요. */
     var testEl = document.getElementById('ef-istest');
-    if(testEl) testEl.addEventListener('change', function(){
-      state.editEntry.isTest = testEl.checked;
-      var wrap = testEl.closest('.label-check');
-      if(wrap) wrap.classList.toggle('on', testEl.checked);
-      var hint = document.getElementById('ef-istest-hint');
-      if(hint) hint.hidden = !testEl.checked;
-    });
+    var interpEl = document.getElementById('ef-isinterp');
+    var syncKind = function(just){
+      // 한 일정은 검사이거나 해석이거나 둘 다 아니거나 — 둘을 같이 켤 수는 없어요
+      if(just === 'test' && testEl && testEl.checked && interpEl) interpEl.checked = false;
+      if(just === 'interp' && interpEl && interpEl.checked && testEl) testEl.checked = false;
+      var isTest = !!(testEl && testEl.checked);
+      var isInterp = !!(interpEl && interpEl.checked);
+      state.editEntry.isTest = isTest;
+      state.editEntry.isInterp = isInterp;
+      if(testEl && testEl.closest('.label-check')) testEl.closest('.label-check').classList.toggle('on', isTest);
+      if(interpEl && interpEl.closest('.label-check')) interpEl.closest('.label-check').classList.toggle('on', isInterp);
+      var hint = document.getElementById('ef-kind-hint');
+      var nameEl = document.getElementById('ef-kind-name');
+      if(nameEl && (isTest || isInterp)) nameEl.textContent = isInterp ? INTERP_TYPE : TEST_TYPE;
+      if(hint) hint.hidden = !(isTest || isInterp);
+    };
+    if(testEl) testEl.addEventListener('change', function(){ syncKind('test'); });
+    if(interpEl) interpEl.addEventListener('change', function(){ syncKind('interp'); });
 
     attachAutocomplete('ef-title', 'ef-title-ac', function(){
       return clientsSorted().map(function(cl){ return cl.name; });
@@ -4518,7 +4547,8 @@
         date: date, start:start, end:end, title:title, memo:memo,
         // 검사 여부는 일정마다 따로 둡니다. 예전에 넣은 일정에는 이 항목이 없는데,
         // 없으면 "검사 아님"으로 읽혀서 기존 자료는 그대로예요.
-        isTest: !!(testEl && testEl.checked),
+        isTest: !!(testEl && testEl.checked) && !(interpEl && interpEl.checked),
+        isInterp: !!(interpEl && interpEl.checked),
         updatedAt: new Date().toISOString()
       };
 
