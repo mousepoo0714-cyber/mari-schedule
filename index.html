@@ -654,6 +654,7 @@
     background:var(--surface-2); --kind:var(--tag-1); --kind-soft:var(--tag-1-soft);
   }
   .label-check.interp{ --kind:var(--tag-4); --kind-soft:var(--tag-4-soft); }
+  .label-check.cancel{ --kind:var(--danger); --kind-soft:var(--danger-soft); }
   .label-check input[type=checkbox]{
     width:15px; height:15px; margin:0; accent-color:var(--kind); flex:none;
   }
@@ -663,8 +664,16 @@
     color:var(--tag-1); background:var(--tag-1-soft); padding:2px 8px; border-radius:999px;
   }
   .kind-badge.interp{ color:var(--tag-4); background:var(--tag-4-soft); }
+  .kind-badge.cancel{ color:var(--danger); background:var(--danger-soft); }
   .cal-kind{ flex:none; font-weight:800; color:var(--tag-1); }
   .cal-kind.interp{ color:var(--tag-4); }
+  .cal-kind.cancel{ color:var(--danger); }
+  /* 당일취소는 한눈에 보이게 이름에 줄을 긋습니다 */
+  .cal-chip.cancelled .cal-chip-name,
+  .cal-chip.cancelled .cal-chip-time{ text-decoration:line-through; opacity:.6; }
+  .day-entry.cancelled .title,
+  .day-entry.cancelled .time{ text-decoration:line-through; }
+  .day-entry.cancelled .title .kind-badge{ text-decoration:none; }
   .confirm-msg{ margin:0; color:var(--ink-soft); line-height:1.65; white-space:pre-line; }
   .modal{
     background:var(--surface); width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
@@ -1389,6 +1398,10 @@
   // 일정 하나에는 둘 중 하나만 붙습니다 ('' 이면 보통 상담)
   function kindOf(e){ return e && e.isInterp ? 'interp' : (e && e.isTest ? 'test' : ''); }
   function kindLabel(e){ var k = kindOf(e); return k==='test' ? TEST_TYPE : (k==='interp' ? INTERP_TYPE : ''); }
+  // 당일취소는 검사·해석과 달리 "어떤 상담이었는지"를 덮어쓰지 않아요.
+  // 상담타입은 그대로 두고, 그 타입의 취소 건수로만 따로 셉니다.
+  var CANCEL_SUFFIX = ' 당일취소';
+  function isCancelled(e){ return !!(e && e.isCancel); }
 
   /* ---------------- state ---------------- */
   var state = {
@@ -2083,7 +2096,7 @@
       var mo = String(e.date||'').slice(0,7);
       if(!k || !e.id || !mo) return;
       // 검사·해석은 1회로 끝나니 상담 회차에 끼워 세지 않아요 (달력에는 따로 표시됩니다)
-      if(kindOf(e)) return;
+      if(kindOf(e) || isCancelled(e)) return;
       var kk = k + '|' + mo;
       (byMonth[kk] = byMonth[kk] || []).push(e);
     });
@@ -2803,10 +2816,11 @@
         dayEntries.forEach(function(e){
           var idx = colorIndexFor(memberById(e.counselorId));
           var sn = sessionOf(e);
-          html += '<span class="cal-chip" style="--tag:var(--tag-'+idx+');--tag-soft:var(--tag-'+idx+'-soft)">' +
+          html += '<span class="cal-chip'+(isCancelled(e)?' cancelled':'')+'" style="--tag:var(--tag-'+idx+');--tag-soft:var(--tag-'+idx+'-soft)">' +
             (e.start ? '<span class="cal-chip-time">'+esc(e.start)+'</span>' : '') +
             '<span class="cal-chip-name">'+esc(e.title||'상담')+'</span>' +
             (kindOf(e) ? '<span class="cal-kind'+(kindOf(e)==='interp'?' interp':'')+'" title="'+kindLabel(e)+'">'+kindLabel(e).slice(0,1)+'</span>' : '') +
+            (isCancelled(e) ? '<span class="cal-kind cancel" title="당일취소">취</span>' : '') +
             (sn ? '<span class="cal-n">'+sn.n+'</span>' : '') +
             '</span>';
         });
@@ -2852,7 +2866,7 @@
       var canEdit = admin || e.counselorId === state.account.id;
       var sn = sessionOf(e);
       var cl = clientForEntry(e);
-      var out = '<div class="day-entry'+(grouped?' in-group':'')+'">';
+      var out = '<div class="day-entry'+(grouped?' in-group':'')+(isCancelled(e)?' cancelled':'')+'">';
       if(!grouped){
         out += '<span class="dot" style="background:var(--tag-'+colorIndexFor(memberById(e.counselorId))+')"></span>';
       }
@@ -2860,6 +2874,7 @@
       out += '<div class="title">'+esc(e.title||'상담')+
         (cl?'<button class="client-info-btn" data-clientinfo="'+esc(cl.id)+'" title="내담자 정보">i</button>':'')+
         (kindOf(e)?'<span class="kind-badge'+(kindOf(e)==='interp'?' interp':'')+'">'+kindLabel(e)+'</span>':'')+
+        (isCancelled(e)?'<span class="kind-badge cancel">당일취소</span>':'')+
         (sn?'<span class="session-badge">이달 '+sn.n+'회차</span>':'')+'</div>';
       if(admin && !grouped) out += '<div class="who">'+esc(e.counselorName||'')+'</div>';
       if(e.memo) out += '<div class="memo">'+esc(e.memo)+'</div>';
@@ -2929,14 +2944,18 @@
     if(admin){
       html += '<div class="field"><label>구성원</label><select id="ef-counselor">'+memberOptions+'</select></div>';
     }
-    // 검사는 1회로 끝나는 일정이라, 내담자의 상담타입과 별개로 일정마다 표시합니다.
+    // 검사·해석은 1회로 끝나는 일정이라 상담타입 대신 세고,
+    // 당일취소는 상담타입은 그대로 두고 취소 건수로만 따로 셉니다.
     var kindNow = kindOf(entry);
+    var cancelNow = isCancelled(entry);
     html += '<div class="field">';
     html += '<div class="label-row"><label for="ef-title">제목 / 내담자</label><div class="label-checks">' +
       '<label class="label-check'+(kindNow==='test'?' on':'')+'" for="ef-istest">' +
       '<input type="checkbox" id="ef-istest"'+(kindNow==='test'?' checked':'')+'/>검사</label>' +
       '<label class="label-check interp'+(kindNow==='interp'?' on':'')+'" for="ef-isinterp">' +
       '<input type="checkbox" id="ef-isinterp"'+(kindNow==='interp'?' checked':'')+'/>해석</label>' +
+      '<label class="label-check cancel'+(cancelNow?' on':'')+'" for="ef-iscancel">' +
+      '<input type="checkbox" id="ef-iscancel"'+(cancelNow?' checked':'')+'/>당일취소</label>' +
       '</div></div>';
     html += '<div class="ac-wrap"><input id="ef-title" autocomplete="off" placeholder="내담자 이름" value="'+esc(entry.title||'')+'"/>' +
       '<div class="ac-list" id="ef-title-ac" hidden></div></div>';
@@ -2947,6 +2966,9 @@
     html += '<div class="hint" id="ef-kind-hint"'+(kindNow?'':' hidden')+'>' +
       '이 일정은 <b id="ef-kind-name">'+esc(kindLabel(entry)||'검사')+'</b>(으)로 저장돼요. ' +
       '내담자의 상담타입은 그대로 두고, 일정 내려받기에서 따로 세고 단가도 따로 매깁니다.</div>';
+    html += '<div class="hint" id="ef-cancel-hint"'+(cancelNow?'':' hidden')+'>' +
+      '<b>당일취소</b>로 저장돼요. 상담 회차에서는 빠지고, 일정 내려받기에서 ' +
+      '그 상담타입 바로 아래 <b>「○○ 당일취소」</b> 줄로 따로 셉니다.</div>';
     html += '</div>';
     html += '<div class="field"><label for="ef-date">날짜</label><input type="date" id="ef-date" value="'+esc(entry.date||'')+'"/></div>';
 
@@ -3861,6 +3883,7 @@
     var line = (t ? t + ' ' : '') + (e.title || '(이름 없음)');
     if(kindOf(e)) line += ' [' + kindLabel(e) + ']';
     else if(s && s.total > 1) line += ' ' + s.n + '회';
+    if(isCancelled(e)) line += ' [당일취소]';
     var who = e.counselorName || (memberById(e.counselorId) || {}).name || '';
     if(who) line += ' / ' + who;
     return line;
@@ -3926,24 +3949,44 @@
     for(var dd = 1; dd <= lastDay; dd++) dayCols.push(dd);
 
     // 이 달에 쓰인 상담타입 모으기.
-    // 검사는 1회로 끝나는 일정이라 내담자의 상담타입과 섞지 않고 따로 셉니다.
-    var typeSet = {}, hasNoType = false, hasKind = {};
+    //  · 검사·해석은 1회로 끝나는 일정이라 내담자의 상담타입과 섞지 않고 따로 셉니다.
+    //  · 당일취소는 상담타입을 덮어쓰지 않아요. 그 타입 바로 아래에
+    //    "○○ 당일취소" 줄을 하나 더 만들어서 거기에 셉니다.
+    function baseTypeOf(e){
+      return kindLabel(e) || typeOf(clientForEntry(e)) || NO_TYPE;
+    }
+    var typeSet = {}, hasNoType = false, hasKind = {}, cancelSet = {};
     list.forEach(function(e){
+      var base = baseTypeOf(e);
+      if(isCancelled(e)) cancelSet[base] = true;
       var k = kindLabel(e);
       if(k){ hasKind[k] = true; return; }
       var t = typeOf(clientForEntry(e));
       if(t) typeSet[t] = true; else hasNoType = true;
     });
-    var typeList = Object.keys(typeSet).sort(function(a,b){ return a.localeCompare(b, 'ko'); });
+    var baseList = Object.keys(typeSet).sort(function(a,b){ return a.localeCompare(b, 'ko'); });
     // 상담타입 이름이 마침 "검사"·"해석" 이어도 줄이 두 번 생기지 않게 합니다
     [TEST_TYPE, INTERP_TYPE].forEach(function(k){
-      if(hasKind[k] && typeList.indexOf(k) === -1) typeList.push(k);
+      if(hasKind[k] && baseList.indexOf(k) === -1) baseList.push(k);
     });
-    if(hasNoType) typeList.push(NO_TYPE);
+    if(hasNoType && baseList.indexOf(NO_TYPE) === -1) baseList.push(NO_TYPE);
+    // 취소만 있고 실시 건이 없는 타입도 줄이 필요해요
+    Object.keys(cancelSet).forEach(function(base){
+      if(baseList.indexOf(base) === -1) baseList.push(base);
+    });
+
+    // 실제로 표에 그릴 줄 목록 — 타입 한 줄, 그 아래 취소 한 줄
+    var typeList = [];
+    baseList.forEach(function(base){
+      typeList.push(base);
+      if(cancelSet[base]) typeList.push(base + CANCEL_SUFFIX);
+    });
+    var anyCancel = Object.keys(cancelSet).length > 0;
 
     // 상담사 -> 타입 -> 날짜 -> 건수
     function emptyTally(){
-      var t = { all: {}, sum: 0, byType: {} };
+      // all/sum 은 실제로 진행한 건수, cancelAll/cancelSum 은 당일취소 건수예요
+      var t = { all: {}, sum: 0, cancelAll: {}, cancelSum: 0, byType: {} };
       typeList.forEach(function(ty){ t.byType[ty] = { days:{}, sum:0 }; });
       return t;
     }
@@ -3959,12 +4002,18 @@
     var centerTotal = emptyTally();
     list.forEach(function(e){
       var who = e.counselorName || (memberById(e.counselorId)||{}).name || '(담당 미지정)';
-      var ty = kindLabel(e) || typeOf(clientForEntry(e)) || NO_TYPE;
+      var cancelled = isCancelled(e);
+      var ty = baseTypeOf(e) + (cancelled ? CANCEL_SUFFIX : '');
       var d = parseInt(String(e.date||'').slice(8,10), 10);
       if(!d) return;
       [bucket(who), centerTotal].forEach(function(t){
-        t.all[d] = (t.all[d]||0) + 1;
-        t.sum++;
+        if(cancelled){
+          t.cancelAll[d] = (t.cancelAll[d]||0) + 1;
+          t.cancelSum++;
+        } else {
+          t.all[d] = (t.all[d]||0) + 1;
+          t.sum++;
+        }
         var bt = t.byType[ty];
         if(bt){ bt.days[d] = (bt.days[d]||0) + 1; bt.sum++; }
       });
@@ -3978,7 +4027,7 @@
 
     var aggRows = [];
     aggRows.push({ h:26, cells:[{ v: orgName + ' · ' + y + '년 ' + (m+1) + '월 상담사별 집계', s:'title', span:WIDTH }] });
-    aggRows.push({ h:16, cells:[{ v:'상담타입별로 몇 회씩 진행했는지 하루 단위로 나눠 적었어요. 빈 칸은 0회입니다. 검사·해석은 1회성이라 상담타입과 별개의 줄로 셉니다.', s:'sub', span:WIDTH }] });
+    aggRows.push({ h:16, cells:[{ v:'상담타입별로 몇 회씩 진행했는지 하루 단위로 나눠 적었어요. 빈 칸은 0회입니다. 검사·해석은 1회성이라 별개의 줄로, 당일취소는 그 상담타입 바로 아래 줄로 셉니다.', s:'sub', span:WIDTH }] });
     aggRows.push({ h:16, cells:[{ v:'노란 칸(맨 위 "센터 전체"의 단가)에 금액을 넣으면 아래 상담사 표에도 같이 반영되고, 금액이 자동으로 계산됩니다.', s:'sub', span:WIDTH }] });
 
     function headRow(){
@@ -4002,10 +4051,11 @@
       aggRows.push(headRow());
 
       var totalRowNo = aggRows.length + 1;              // 곧 넣을 "전체" 줄의 엑셀 행 번호
-      var firstTypeRow = totalRowNo + 1;
-      var lastTypeRow  = totalRowNo + typeList.length;
+      // 취소가 하나라도 있으면 "전체" 바로 아래에 취소 합계 줄이 한 줄 더 들어갑니다
+      var firstTypeRow = totalRowNo + (anyCancel ? 2 : 1);
+      var lastTypeRow  = firstTypeRow + typeList.length - 1;
 
-      // 전체 줄 — 금액은 아래 타입 줄들의 합
+      // 전체 줄 — 실제로 진행한 건수만. 금액은 아래 타입 줄들(취소 줄 포함)의 합
       var totalCells = [{ v:'전체', s:'rowhead' }];
       dayCols.forEach(function(d){
         totalCells.push({ v: t.all[d] || '', s:'sumcell' });
@@ -4016,6 +4066,18 @@
         ? { f:'SUM('+COL_MONEY+firstTypeRow+':'+COL_MONEY+lastTypeRow+')', s:'moneySum' }
         : { v:'', s:'moneySum' });
       aggRows.push({ cells:totalCells });
+
+      // 전체 당일취소 줄 — 건수만 한눈에 봅니다 (금액은 아래 타입별 취소 줄에서 계산돼요)
+      if(anyCancel){
+        var cancelCells = [{ v:'전체'+CANCEL_SUFFIX, s:'rowhead' }];
+        dayCols.forEach(function(d){
+          cancelCells.push({ v: t.cancelAll[d] || '', s:'sumcell' });
+        });
+        cancelCells.push({ v:t.cancelSum, s:'sumcell' });
+        cancelCells.push({ v:'', s:'sumcell' });
+        cancelCells.push({ v:'', s:'sumcell' });
+        aggRows.push({ cells:cancelCells });
+      }
 
       typeList.forEach(function(ty, i){
         var rowNo = firstTypeRow + i;
@@ -4392,28 +4454,37 @@
     };
     if(titleEl) titleEl.addEventListener('change', function(){ applyClientLink(titleEl.value); });
 
-    /* --- 검사 체크 ---
+    /* --- 검사 / 해석 / 당일취소 체크 ---
        화면을 다시 그리지 않고 표시만 바꿉니다 (이름을 한글로 치는 중에 끊기지 않게).
        다시 그릴 때를 대비해 state 에도 넣어둬요. */
     var testEl = document.getElementById('ef-istest');
     var interpEl = document.getElementById('ef-isinterp');
+    var cancelEl = document.getElementById('ef-iscancel');
     var syncKind = function(just){
-      // 한 일정은 검사이거나 해석이거나 둘 다 아니거나 — 둘을 같이 켤 수는 없어요
+      // 한 일정은 검사이거나 해석이거나 둘 다 아니거나 — 둘을 같이 켤 수는 없어요.
+      // 당일취소는 여기에 상관없이 따로 켤 수 있습니다 (검사를 당일취소할 수도 있으니까요).
       if(just === 'test' && testEl && testEl.checked && interpEl) interpEl.checked = false;
       if(just === 'interp' && interpEl && interpEl.checked && testEl) testEl.checked = false;
       var isTest = !!(testEl && testEl.checked);
       var isInterp = !!(interpEl && interpEl.checked);
+      var isCancel = !!(cancelEl && cancelEl.checked);
       state.editEntry.isTest = isTest;
       state.editEntry.isInterp = isInterp;
-      if(testEl && testEl.closest('.label-check')) testEl.closest('.label-check').classList.toggle('on', isTest);
-      if(interpEl && interpEl.closest('.label-check')) interpEl.closest('.label-check').classList.toggle('on', isInterp);
+      state.editEntry.isCancel = isCancel;
+      [[testEl, isTest], [interpEl, isInterp], [cancelEl, isCancel]].forEach(function(pair){
+        var el = pair[0];
+        if(el && el.closest('.label-check')) el.closest('.label-check').classList.toggle('on', pair[1]);
+      });
       var hint = document.getElementById('ef-kind-hint');
       var nameEl = document.getElementById('ef-kind-name');
       if(nameEl && (isTest || isInterp)) nameEl.textContent = isInterp ? INTERP_TYPE : TEST_TYPE;
       if(hint) hint.hidden = !(isTest || isInterp);
+      var chint = document.getElementById('ef-cancel-hint');
+      if(chint) chint.hidden = !isCancel;
     };
     if(testEl) testEl.addEventListener('change', function(){ syncKind('test'); });
     if(interpEl) interpEl.addEventListener('change', function(){ syncKind('interp'); });
+    if(cancelEl) cancelEl.addEventListener('change', function(){ syncKind('cancel'); });
 
     attachAutocomplete('ef-title', 'ef-title-ac', function(){
       return clientsSorted().map(function(cl){ return cl.name; });
@@ -4549,6 +4620,7 @@
         // 없으면 "검사 아님"으로 읽혀서 기존 자료는 그대로예요.
         isTest: !!(testEl && testEl.checked) && !(interpEl && interpEl.checked),
         isInterp: !!(interpEl && interpEl.checked),
+        isCancel: !!(cancelEl && cancelEl.checked),
         updatedAt: new Date().toISOString()
       };
 
