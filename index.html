@@ -492,6 +492,30 @@
     font-family:'Noto Sans KR',sans-serif; white-space:nowrap;
   }
   .post-row-meta{ font-size:.77rem; color:var(--ink-faint); }
+  /* ---- 좋아요 · 조회 ---- */
+  .like-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:7px 14px; border:1px solid var(--line); border-radius:999px;
+    background:var(--surface); color:var(--ink-soft);
+    font-family:inherit; font-size:.85rem; font-weight:700; cursor:pointer;
+    line-height:1;
+  }
+  .like-btn .like-heart{ font-size:1rem; line-height:1; }
+  .like-btn.on{ color:var(--danger); border-color:var(--danger); background:var(--danger-soft); }
+  .like-btn.sm{ padding:4px 10px; font-size:.75rem; gap:4px; }
+  .like-btn.sm .like-heart{ font-size:.85rem; }
+  .post-actions{
+    display:flex; align-items:center; gap:10px; margin-top:20px;
+    padding-top:16px; border-top:1px solid var(--line);
+  }
+  .post-stat{ font-size:.78rem; color:var(--ink-faint); font-weight:600; }
+  .row-stats{
+    display:inline-flex; align-items:center; gap:9px; margin-left:8px;
+    font-size:.72rem; font-weight:700; color:var(--ink-faint); white-space:nowrap;
+  }
+  .row-stats .liked{ color:var(--danger); }
+  .comment-foot{ display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .comment-foot .comment-del{ position:static; margin-left:auto; }
   .post-view{
     background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px;
   }
@@ -1444,6 +1468,10 @@
     boards: [],               // [{id, orgId, name, writeRestricted, createdAt}]
     posts: [],                // [{id, orgId, boardId, title, body, authorId, authorName, createdAt}]
     comments: [],             // [{id, orgId, postId, body, authorId, authorName, authorRole, createdAt}]
+    // 좋아요·조회 표시. 한 사람이 한 글(또는 한 답글)에 문서 하나만 가집니다.
+    // 문서 id = 대상 id + '__' + 내 계정 id 라서 중복이 생기지 않아요.
+    marks: [],                // [{id, orgId, targetId, targetType, postId, userId, userName, liked, viewedAt}]
+    marksLoaded: false,       // 기록이 한 번이라도 도착했는지 (도착 전에 쓰면 덮어써요)
     commentBusy: false, commentError: '',
     boardId: null,            // 열어둔 게시판 (null이면 게시판 목록)
     postId: null,             // 열어둔 글
@@ -1568,6 +1596,11 @@
     state.boards = [];
     state.posts = [];
     state.comments = [];
+    state.marks = [];
+    state.marksLoaded = false;
+    // 사람이 바뀌면 "이미 읽음" 기억도 비웁니다 — 안 그러면 다음 사람의
+    // 조회가 기록되지 않아요.
+    viewedThisSession = {};
     state.orgAdmin = null;
   }
   function clearAccountSub(){
@@ -1785,6 +1818,13 @@
       render();
     }, function(){ /* 답글만 비어 보임 */ });
     orgUnsubs.push(u7);
+
+    var u8 = db.collection('postmarks').where('orgId','==',orgId).limit(5000).onSnapshot(function(qs){
+      state.marks = rows(qs, 'targetId');
+      state.marksLoaded = true;
+      render();
+    }, function(){ /* 좋아요·조회 수만 안 보임 */ });
+    orgUnsubs.push(u8);
   }
 
   // 상담타입은 권한자만 읽을 수 있습니다. 권한이 없는 구성원은 아예 구독하지
@@ -2724,6 +2764,7 @@
       var out = '<button class="recent-row'+(isPin?' pinned':'')+'" data-recent="'+esc(p.id)+'">';
       out += '<span class="recent-board">'+esc(isPin ? '고정' : ((b && b.name) || '게시판'))+'</span>';
       out += '<span class="recent-title">'+esc(p.title||'(제목 없음)')+'</span>';
+      if(likeCount(p.id)) out += '<span class="recent-reply" style="color:var(--danger);background:var(--danger-soft);">♥'+likeCount(p.id)+'</span>';
       if(reply) out += '<span class="recent-reply">'+reply+'</span>';
       out += '<span class="recent-when">'+esc(shortDateTime(p.createdAt))+'</span>';
       out += '</button>';
@@ -3730,7 +3771,10 @@
       var reply = commentsOfPost(p.id).length;
       html += '<div class="post-row-title">'+(p.pinned?'<span class="pin-badge">고정</span>':'')+esc(p.title||'(제목 없음)')+
         (reply?'<span class="reply-badge">답글 '+reply+'</span>':'')+'</div>';
-      html += '<div class="post-row-meta">'+esc(p.authorName||'')+' · '+esc(fmtDateTime(p.createdAt))+'</div>';
+      var likes = likeCount(p.id);
+      html += '<div class="post-row-meta">'+esc(p.authorName||'')+' · '+esc(fmtDateTime(p.createdAt))+
+        '<span class="row-stats"><span>조회 '+viewCount(p.id)+'</span>'+
+        (likes?'<span class="liked">♥ '+likes+'</span>':'')+'</span></div>';
       html += '</button>';
     });
     html += '</div>';
@@ -3745,6 +3789,10 @@
     html += '<div class="post-byline">'+esc(p.authorName||'')+' · '+esc(fmtDateTime(p.createdAt))+
       (p.updatedAt && p.updatedAt !== p.createdAt ? ' · 수정됨' : '')+'</div>';
     html += '<div class="post-body">'+esc(p.body||'')+'</div>';
+    html += '<div class="post-actions">';
+    html += likeButton({ targetId:p.id, targetType:'post', postId:p.id }, false);
+    html += '<span class="post-stat">조회 '+viewCount(p.id)+'</span>';
+    html += '</div>';
     if(canEditPost(p)){
       html += '<div class="modal-actions" style="margin-top:22px;">';
       html += '<button class="btn btn-danger" id="post-delete">삭제</button>';
@@ -3771,6 +3819,102 @@
     return a.job ? ('구성원 · ' + a.job) : '구성원';
   }
 
+  /* ---------------- 좋아요 · 조회 ----------------
+     글·답글마다 "누가 좋아요를 눌렀고 누가 읽었는지"를 사람별 문서 하나로 둡니다.
+     문서 id 가 (대상 id + 내 계정 id) 라서 여러 번 눌러도 문서는 하나예요.
+     그래서 같은 사람이 여러 번 열어도 조회수가 부풀지 않습니다. */
+  function markId(targetId){
+    return String(targetId) + '__' + String((state.account||{}).id || '');
+  }
+  function marksOf(targetId){
+    return state.marks.filter(function(m){ return m.targetId === targetId; });
+  }
+  function myMark(targetId){
+    var me = (state.account||{}).id;
+    if(!me) return null;
+    for(var i=0; i<state.marks.length; i++){
+      var m = state.marks[i];
+      if(m.targetId === targetId && m.userId === me) return m;
+    }
+    return null;
+  }
+  function likeCount(targetId){
+    return marksOf(targetId).filter(function(m){ return m.liked; }).length;
+  }
+  function likedByNames(targetId){
+    return marksOf(targetId).filter(function(m){ return m.liked; })
+      .map(function(m){ return m.userName || ''; }).filter(Boolean)
+      .sort(function(a,b){ return a.localeCompare(b, 'ko'); });
+  }
+  function iLiked(targetId){
+    var m = myMark(targetId);
+    return !!(m && m.liked);
+  }
+  function viewCount(postId){
+    return marksOf(postId).filter(function(m){ return !!m.viewedAt; }).length;
+  }
+  // 문서를 통째로 다시 씁니다 (부분 수정은 문서가 이미 있어야 해서요)
+  function writeMark(target, patch){
+    if(!state.db || !state.account) return Promise.resolve();
+    var cur = myMark(target.targetId) || {};
+    var body = {
+      orgId: myOrgId(),
+      targetId: target.targetId,
+      targetType: target.targetType,
+      postId: target.postId,
+      userId: state.account.id,
+      userName: state.account.name || '',
+      liked: cur.liked || false,
+      viewedAt: cur.viewedAt || ''
+    };
+    Object.keys(patch).forEach(function(k){ body[k] = patch[k]; });
+    return state.db.collection('postmarks').doc(markId(target.targetId)).set(body);
+  }
+  function toggleLike(target){
+    writeMark(target, { liked: !iLiked(target.targetId) }).catch(function(){
+      showToast('좋아요를 저장하지 못했어요. 다시 시도해주세요.');
+    });
+  }
+  // 글을 열면 한 번만 기록합니다. 구독이 아직 도착하지 않았을 수도 있어서
+  // 이번 접속 동안 이미 쓴 글은 따로 기억해둬요.
+  var viewedThisSession = {};
+  function recordView(p){
+    if(!p || !state.account) return;
+    // 기록이 아직 도착하지 않았는데 쓰면, 이미 눌러둔 좋아요를 덮어써요.
+    // 도착할 때까지 기다렸다가 다음 그리기에서 씁니다.
+    if(!state.marksLoaded) return;
+    if(viewedThisSession[p.id]) return;
+    viewedThisSession[p.id] = true;          // 이번 접속 동안은 이 글을 다시 건드리지 않아요
+    var m = myMark(p.id);
+    if(m && m.viewedAt) return;
+    writeMark({ targetId: p.id, targetType: 'post', postId: p.id },
+              { viewedAt: new Date().toISOString() }).catch(function(){});
+  }
+  // 글·답글을 지우면 딸린 표시도 같이 지웁니다 (주인 없는 기록이 남지 않게)
+  function deleteMarksFor(ids){
+    var want = {};
+    ids.forEach(function(id){ want[id] = true; });
+    var chain = Promise.resolve();
+    state.marks.filter(function(m){ return want[m.targetId]; }).forEach(function(m){
+      chain = chain.then(function(){
+        return state.db.collection('postmarks').doc(m.id).delete().catch(function(){});
+      });
+    });
+    return chain;
+  }
+  function likeButton(target, small){
+    var n = likeCount(target.targetId);
+    var on = iLiked(target.targetId);
+    var who = likedByNames(target.targetId).join(', ');
+    return '<button class="like-btn'+(on?' on':'')+(small?' sm':'')+'"' +
+      ' data-like="'+esc(target.targetId)+'"' +
+      ' data-liketype="'+esc(target.targetType)+'"' +
+      ' data-likepost="'+esc(target.postId)+'"' +
+      (who?' title="'+esc(who)+'"':'') + '>' +
+      '<span class="like-heart">'+(on?'♥':'♡')+'</span>' +
+      '<span class="like-n">'+n+'</span></button>';
+  }
+
   function tplComments(p){
     var list = commentsOfPost(p.id);
     var me = state.account || {};
@@ -3789,9 +3933,12 @@
       html += '<span class="comment-when">'+esc(fmtDateTime(c.createdAt))+'</span>';
       html += '</div>';
       html += '<div class="comment-body">'+esc(c.body||'')+'</div>';
+      html += '<div class="comment-foot">';
+      html += likeButton({ targetId:c.id, targetType:'comment', postId:p.id }, true);
       if(canDeleteComment(c)){
         html += '<button class="comment-del" data-cdel="'+esc(c.id)+'">삭제</button>';
       }
+      html += '</div>';
       html += '</div>';
     });
 
@@ -5151,7 +5298,7 @@
         onOk: function(){
           // 글을 지우면 딸린 답글도 같이 지웁니다 (남으면 주인 없는 답글이 돼요)
           var kids = commentsOfPost(p.id);
-          var chain = Promise.resolve();
+          var chain = deleteMarksFor([p.id].concat(kids.map(function(c){ return c.id; })));
           kids.forEach(function(c){
             chain = chain.then(function(){ return state.db.collection('comments').doc(c.id).delete(); });
           });
@@ -5163,6 +5310,21 @@
         }
       });
     });
+
+    // 좋아요 — 한 번 더 누르면 취소돼요
+    document.querySelectorAll('[data-like]').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        toggleLike({
+          targetId: btn.getAttribute('data-like'),
+          targetType: btn.getAttribute('data-liketype'),
+          postId: btn.getAttribute('data-likepost')
+        });
+      });
+    });
+
+    // 글을 펼쳐 본 순간 조회로 기록합니다 (사람당 한 번)
+    if(state.postId) recordView(postById(state.postId));
 
     bindComments();
     bindPostEditModal();
@@ -5212,7 +5374,9 @@
         askConfirm({
           title:'답글 삭제', message:'이 답글을 삭제할까요?', okLabel:'삭제',
           onOk: function(){
-            state.db.collection('comments').doc(id).delete().catch(function(){});
+            deleteMarksFor([id]).then(function(){
+              return state.db.collection('comments').doc(id).delete();
+            }).catch(function(){});
           }
         });
       });
