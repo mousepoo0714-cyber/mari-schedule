@@ -2764,7 +2764,8 @@
     if(ns === 'default'){
       html += '<button class="drawer-item" id="notify-on">🔔 새 글 알림 켜기</button>';
     } else if(ns === 'granted'){
-      html += '<div class="drawer-note">🔔 새 글 알림 켜짐</div>';
+      html += '<div class="drawer-note">🔔 알림 켜짐</div>';
+      html += '<button class="drawer-item" id="notify-test">알림이 오는지 시험해보기</button>';
     } else if(ns === 'denied'){
       html += '<div class="drawer-note">🔕 알림이 차단돼 있어요</div>';
     }
@@ -4721,6 +4722,16 @@
       });
       var notifyBtn = document.getElementById('notify-on');
       if(notifyBtn) notifyBtn.addEventListener('click', function(){ askNotify(); });
+      // 기기 알림이 실제로 뜨는지 바로 확인해보는 버튼.
+      // 5초 뒤에 띄워서, 그 사이에 화면을 꺼보거나 다른 앱으로 넘어가 볼 수 있어요.
+      var testBtn = document.getElementById('notify-test');
+      if(testBtn) testBtn.addEventListener('click', function(){
+        state.menuOpen = false;
+        showToast('5초 뒤에 시험 알림을 보냅니다. 지금 화면을 끄거나 다른 앱으로 넘어가 보세요.');
+        setTimeout(function(){
+          fireNotify('마리스케쥴러 시험 알림', '이 알림이 보이면 정상입니다.', 'test');
+        }, 5000);
+      });
       var logoutBtn = document.getElementById('drawer-logout');
       if(logoutBtn) logoutBtn.addEventListener('click', function(){ logout(); });
     }
