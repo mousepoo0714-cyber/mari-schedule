@@ -5,7 +5,7 @@
 //  - 인터넷이 끊기면 마지막으로 받아둔 화면을 대신 보여줍니다.
 //  - 파이어베이스·구글 폰트 같은 바깥 주소는 건드리지 않습니다. (실시간 동기화를 막으면 안 되니까요)
 
-var CACHE = 'mari-schedule-v2';
+var CACHE = 'mari-schedule-v3';
 
 self.addEventListener('install', function(){
   self.skipWaiting();
@@ -18,6 +18,23 @@ self.addEventListener('activate', function(e){
         return k === CACHE ? null : caches.delete(k);
       }));
     }).then(function(){ return self.clients.claim(); })
+  );
+});
+
+// 알림을 누르면 이미 열려 있는 앱으로 돌아가고, 없으면 새로 엽니다.
+self.addEventListener('notificationclick', function(e){
+  e.notification.close();
+  var go = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(
+    self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(function(list){
+      for(var i=0; i<list.length; i++){
+        if('focus' in list[i]){
+          list[i].postMessage({ type:'open-post', postId:(e.notification.data||{}).postId || '' });
+          return list[i].focus();
+        }
+      }
+      if(self.clients.openWindow) return self.clients.openWindow(go);
+    })
   );
 });
 

@@ -251,6 +251,23 @@
   .drawer-item.active{ background:var(--accent-soft); color:var(--accent); }
   .drawer-item.danger{ color:var(--danger); }
   .drawer-sep{ height:1px; background:var(--line); margin:8px 4px; }
+  .drawer-note{ padding:11px 14px; font-size:.86rem; color:var(--ink-faint); font-weight:600; }
+  /* ---- 안 읽은 글 표시 ---- */
+  .new-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:18px; height:18px; padding:0 6px; margin:0 6px;
+    border-radius:999px; background:var(--danger); color:#fff;
+    font-size:.66rem; font-weight:800; line-height:1; vertical-align:2px;
+  }
+  .reply-badge.hot{ color:#fff; background:var(--danger); }
+  .new-dot{ color:var(--danger); font-weight:900; font-size:.7rem; }
+  .hamburger-btn{ position:relative; }
+  .menu-dot{
+    position:absolute; top:-5px; right:-5px;
+    min-width:17px; height:17px; padding:0 4px; border-radius:999px;
+    background:var(--danger); color:#fff; font-style:normal;
+    font-size:.62rem; font-weight:800; line-height:17px; text-align:center;
+  }
 
   /* ---------- month nav ---------- */
   .monthbar{
@@ -1598,9 +1615,9 @@
     state.comments = [];
     state.marks = [];
     state.marksLoaded = false;
-    // 사람이 바뀌면 "이미 읽음" 기억도 비웁니다 — 안 그러면 다음 사람의
+    // 사람이 바뀌면 "지금 보던 글" 기억도 비웁니다 — 안 그러면 다음 사람의
     // 조회가 기록되지 않아요.
-    viewedThisSession = {};
+    openedPostId = null;
     state.orgAdmin = null;
   }
   function clearAccountSub(){
@@ -1807,15 +1824,55 @@
     }, function(){ /* 게시판 목록만 비어 보임 */ });
     orgUnsubs.push(u5);
 
+    // 들어온 뒤에 "새로" 올라온 것만 알려줍니다. 처음 받아온 목록은 조용히 넘겨요.
+    var knownPosts = null, knownComments = null;
+
     var u6 = db.collection('posts').where('orgId','==',orgId).limit(1000).onSnapshot(function(qs){
       state.posts = rows(qs, 'createdAt');
+      var fresh = [];
+      if(knownPosts === null){
+        knownPosts = {};
+        state.posts.forEach(function(p){ knownPosts[p.id] = true; });
+      } else {
+        state.posts.forEach(function(p){
+          if(!knownPosts[p.id]){ knownPosts[p.id] = true; if(!isMine(p.authorId)) fresh.push(p); }
+        });
+      }
       render();
+      fresh.forEach(function(p){
+        var b = boardById(p.boardId);
+        announce('새 글 · ' + ((b && b.name) || '게시판'),
+                 (p.title || '(제목 없음)') + ' — ' + (p.authorName || ''), p.id);
+      });
     }, function(){ /* 글 목록만 비어 보임 */ });
     orgUnsubs.push(u6);
 
     var u7 = db.collection('comments').where('orgId','==',orgId).limit(1000).onSnapshot(function(qs){
       state.comments = rows(qs, 'createdAt');
+      var fresh = [];
+      if(knownComments === null){
+        knownComments = {};
+        state.comments.forEach(function(c){ knownComments[c.id] = true; });
+      } else {
+        state.comments.forEach(function(c){
+          if(knownComments[c.id]) return;
+          knownComments[c.id] = true;
+          // 내가 쓴 글, 또는 내가 답글을 단 글에 새 답글이 달렸을 때만 알려줍니다
+          if(isMine(c.authorId)) return;
+          var p = postById(c.postId);
+          if(!p) return;
+          var joined = isMine(p.authorId) || state.comments.some(function(x){
+            return x.postId === c.postId && isMine(x.authorId);
+          });
+          if(joined) fresh.push(c);
+        });
+      }
       render();
+      fresh.forEach(function(c){
+        var p = postById(c.postId);
+        announce('새 답글 · ' + ((p && p.title) || '게시글'),
+                 (c.authorName || '') + ': ' + String(c.body || '').slice(0, 60), c.postId);
+      });
     }, function(){ /* 답글만 비어 보임 */ });
     orgUnsubs.push(u7);
 
@@ -2609,7 +2666,10 @@
       'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg></span>';
     html += '</button>';
-    html += '<button class="hamburger-btn" id="menu-btn" aria-label="메뉴"><span></span><span></span><span></span></button>';
+    var newN = unreadTotal();
+    html += '<button class="hamburger-btn'+(newN?' has-new':'')+'" id="menu-btn" aria-label="메뉴">' +
+      '<span></span><span></span><span></span>' +
+      (newN ? '<em class="menu-dot">'+(newN>9?'9+':newN)+'</em>' : '') + '</button>';
     html += '</div>';
 
     if(state.panel === 'orgchart'){
@@ -2669,12 +2729,23 @@
     html += '<button class="drawer-item'+(state.panel==='calendar'?' active':'')+'" data-goto="calendar">달력</button>';
     html += '<button class="drawer-item'+(state.panel==='orgchart'?' active':'')+'" data-goto="orgchart">조직도</button>';
     html += '<button class="drawer-item'+(state.panel==='clients'?' active':'')+'" data-goto="clients">회원 관리</button>';
-    html += '<button class="drawer-item'+(state.panel==='boards'?' active':'')+'" data-goto="boards">게시판</button>';
+    var drawerNew = unreadTotal();
+    html += '<button class="drawer-item'+(state.panel==='boards'?' active':'')+'" data-goto="boards">게시판' +
+      (drawerNew ? '<span class="new-badge">'+drawerNew+'</span>' : '') + '</button>';
     if(admin){
       html += '<button class="drawer-item'+(state.panel==='export'?' active':'')+'" data-goto="export">일정 내려받기</button>';
       html += '<button class="drawer-item'+(state.panel==='settings'?' active':'')+'" data-goto="settings">상담센터 설정</button>';
     }
     html += '<div class="drawer-sep"></div>';
+    // 기기 알림 — 서버 없이 브라우저가 띄워줍니다. 지원하지 않는 기기에는 안 보여요.
+    var ns = notifyState();
+    if(ns === 'default'){
+      html += '<button class="drawer-item" id="notify-on">🔔 새 글 알림 켜기</button>';
+    } else if(ns === 'granted'){
+      html += '<div class="drawer-note">🔔 새 글 알림 켜짐</div>';
+    } else if(ns === 'denied'){
+      html += '<div class="drawer-note">🔕 알림이 차단돼 있어요</div>';
+    }
     html += '<button class="drawer-item danger" id="drawer-logout">로그아웃</button>';
     html += '</div></div>';
     return html;
@@ -2763,7 +2834,7 @@
       var reply = commentsOfPost(p.id).length;
       var out = '<button class="recent-row'+(isPin?' pinned':'')+'" data-recent="'+esc(p.id)+'">';
       out += '<span class="recent-board">'+esc(isPin ? '고정' : ((b && b.name) || '게시판'))+'</span>';
-      out += '<span class="recent-title">'+esc(p.title||'(제목 없음)')+'</span>';
+      out += '<span class="recent-title">'+(isUnreadPost(p)?'<b class="new-dot">N</b> ':'')+esc(p.title||'(제목 없음)')+'</span>';
       if(likeCount(p.id)) out += '<span class="recent-reply" style="color:var(--danger);background:var(--danger-soft);">♥'+likeCount(p.id)+'</span>';
       if(reply) out += '<span class="recent-reply">'+reply+'</span>';
       out += '<span class="recent-when">'+esc(shortDateTime(p.createdAt))+'</span>';
@@ -3724,6 +3795,8 @@
       html += '<div class="board-row">';
       html += '<'+tag+' class="board-card'+(reordering?' inert':'')+'"'+(reordering?'':' data-boardopen="'+esc(b.id)+'"')+'>';
       html += '<div class="board-card-top"><span class="board-name">'+esc(b.name)+'</span>';
+      var nb = unreadInBoard(b.id);
+      if(nb) html += '<span class="new-badge">'+nb+'</span>';
       if(b.writeRestricted) html += '<span class="badge-lock">관리자 전용</span>';
       html += '</div>';
       html += '<div class="board-meta">글 '+posts.length+'개' +
@@ -3769,8 +3842,10 @@
     posts.forEach(function(p){
       html += '<button class="post-row'+(p.pinned?' pinned':'')+'" data-postopen="'+esc(p.id)+'">';
       var reply = commentsOfPost(p.id).length;
-      html += '<div class="post-row-title">'+(p.pinned?'<span class="pin-badge">고정</span>':'')+esc(p.title||'(제목 없음)')+
-        (reply?'<span class="reply-badge">답글 '+reply+'</span>':'')+'</div>';
+      html += '<div class="post-row-title">'+(p.pinned?'<span class="pin-badge">고정</span>':'')+
+        (isUnreadPost(p)?'<span class="new-badge">N</span>':'')+esc(p.title||'(제목 없음)')+
+        (reply?'<span class="reply-badge'+(unreadReplyCount(p)?' hot':'')+'">답글 '+reply+
+          (unreadReplyCount(p)?' (+'+unreadReplyCount(p)+')':'')+'</span>':'')+'</div>';
       var likes = likeCount(p.id);
       html += '<div class="post-row-meta">'+esc(p.authorName||'')+' · '+esc(fmtDateTime(p.createdAt))+
         '<span class="row-stats"><span>조회 '+viewCount(p.id)+'</span>'+
@@ -3877,19 +3952,132 @@
   }
   // 글을 열면 한 번만 기록합니다. 구독이 아직 도착하지 않았을 수도 있어서
   // 이번 접속 동안 이미 쓴 글은 따로 기억해둬요.
-  var viewedThisSession = {};
+  // viewedAt 은 "내가 이 글을 마지막으로 연 시각"입니다.
+  // 조회수는 이 항목이 비어 있지 않은 사람 수라서, 값이 바뀌어도 숫자는 그대로예요.
+  // 그리고 이 시각 뒤에 달린 남의 답글이 곧 "안 읽은 답글"이 됩니다.
+  // 지금 펼쳐 둔 글. 글이 열려 있는 동안 화면을 여러 번 그려도 한 번만 씁니다.
+  // 닫았다가 다시 열면 그때 시각으로 다시 적어요 — 그 사이에 달린 답글이
+  // "새 답글"로 잡히게 하려면 이게 갱신돼야 하거든요.
+  var openedPostId = null;
+  function clearOpenedPost(){ openedPostId = null; }
   function recordView(p){
     if(!p || !state.account) return;
     // 기록이 아직 도착하지 않았는데 쓰면, 이미 눌러둔 좋아요를 덮어써요.
     // 도착할 때까지 기다렸다가 다음 그리기에서 씁니다.
     if(!state.marksLoaded) return;
-    if(viewedThisSession[p.id]) return;
-    viewedThisSession[p.id] = true;          // 이번 접속 동안은 이 글을 다시 건드리지 않아요
-    var m = myMark(p.id);
-    if(m && m.viewedAt) return;
+    if(openedPostId === p.id) return;
+    openedPostId = p.id;
     writeMark({ targetId: p.id, targetType: 'post', postId: p.id },
               { viewedAt: new Date().toISOString() }).catch(function(){});
   }
+
+  /* ---------------- 안 읽은 글 · 답글 ----------------
+     지난 NEW_DAYS 일 안에 올라온 글 중 내가 아직 열어보지 않은 것을 "새 글"로 봅니다.
+     기간을 두는 이유: 이 기능을 켜기 전에 올라온 옛날 글까지 전부 빨갛게 뜨면
+     아무도 안 보게 되거든요. */
+  var NEW_DAYS = 14;
+  function withinNewWindow(iso){
+    if(!iso) return false;
+    var t = new Date(iso).getTime();
+    if(isNaN(t)) return false;
+    return (Date.now() - t) < NEW_DAYS * 86400000;
+  }
+  function isMine(authorId){
+    return !!(state.account && authorId === state.account.id);
+  }
+  // 내가 쓴 글은 "안 읽음"이 아니에요
+  function isUnreadPost(p){
+    if(!p || isMine(p.authorId)) return false;
+    if(!withinNewWindow(p.createdAt)) return false;
+    var m = myMark(p.id);
+    return !(m && m.viewedAt);
+  }
+  // 내가 이 글을 연 뒤에 달린 남의 답글 수
+  function unreadReplyCount(p){
+    if(!p) return 0;
+    var m = myMark(p.id);
+    var since = (m && m.viewedAt) || '';
+    if(!since) return 0;                       // 글 자체를 안 읽었으면 "새 글"로만 셉니다
+    return commentsOfPost(p.id).filter(function(c){
+      return !isMine(c.authorId) && String(c.createdAt||'') > since;
+    }).length;
+  }
+  function postsNeedingAttention(){
+    return state.posts.filter(function(p){
+      return isUnreadPost(p) || unreadReplyCount(p) > 0;
+    });
+  }
+  function unreadTotal(){ return postsNeedingAttention().length; }
+  function unreadInBoard(boardId){
+    return postsNeedingAttention().filter(function(p){ return p.boardId === boardId; }).length;
+  }
+
+  /* ---------------- 알림 ----------------
+     서버 없이, 앱이 떠 있는 동안 브라우저가 띄워주는 알림입니다.
+      · 컴퓨터 크롬: 다른 탭을 보고 있어도 화면 구석에 뜹니다.
+      · 안드로이드: 앱이 열려 있을 때 뜹니다. 완전히 닫으면 못 받아요.
+      · 아이폰: 사파리가 이 방식을 지원하지 않아서, 앱 안의 빨간 숫자로만 알려드립니다.
+     안드로이드는 new Notification(...) 이 막혀 있어서 서비스워커로 띄워야 해요. */
+  function appIconUrl(){
+    var l = document.querySelector('link[rel="icon"]');
+    return l ? l.getAttribute('href') : undefined;
+  }
+  function notifySupported(){
+    return typeof Notification !== 'undefined';
+  }
+  function notifyState(){
+    if(!notifySupported()) return 'unsupported';
+    return Notification.permission;             // 'default' | 'granted' | 'denied'
+  }
+  function askNotify(){
+    if(!notifySupported()) return;
+    try{
+      Notification.requestPermission().then(function(res){
+        if(res === 'granted') showToast('알림을 켰어요. 앱이 열려 있을 때 새 글을 알려드릴게요.');
+        else if(res === 'denied') showToast('알림이 차단됐어요. 브라우저 주소창 옆 자물쇠에서 다시 켤 수 있어요.');
+        render();
+      }).catch(function(){});
+    }catch(e){}
+  }
+  function fireNotify(title, body, postId){
+    if(notifyState() !== 'granted') return;
+    var opts = {
+      body: body,
+      icon: appIconUrl(),
+      badge: appIconUrl(),
+      tag: 'mari-' + postId,                    // 같은 글이면 알림이 겹치지 않게
+      data: { postId: postId, url: './' }
+    };
+    if(navigator.serviceWorker && navigator.serviceWorker.getRegistration){
+      navigator.serviceWorker.getRegistration().then(function(reg){
+        if(reg && reg.showNotification){ reg.showNotification(title, opts); return; }
+        try{ new Notification(title, opts); }catch(e){}
+      }).catch(function(){
+        try{ new Notification(title, opts); }catch(e){}
+      });
+      return;
+    }
+    try{ new Notification(title, opts); }catch(e){}
+  }
+  // 앱을 보고 있으면 앱 안 안내로, 다른 걸 보고 있으면 기기 알림으로.
+  function announce(title, body, postId){
+    if(typeof document !== 'undefined' && document.visibilityState === 'visible'){
+      showToast(title + ' — ' + body);
+    } else {
+      fireNotify(title, body, postId);
+    }
+  }
+  function openPostById(id){
+    var p = postById(id);
+    if(!p) return;
+    state.panel = 'boards';
+    state.boardId = p.boardId;
+    state.postId = p.id;
+    state.menuOpen = false;
+    render();
+  }
+  // 알림을 눌렀을 때 서비스워커가 불러주는 통로
+  window.__mariOpenPost = openPostById;
   // 글·답글을 지우면 딸린 표시도 같이 지웁니다 (주인 없는 기록이 남지 않게)
   function deleteMarksFor(ids){
     var want = {};
@@ -4421,6 +4609,8 @@
           render();
         });
       });
+      var notifyBtn = document.getElementById('notify-on');
+      if(notifyBtn) notifyBtn.addEventListener('click', function(){ askNotify(); });
       var logoutBtn = document.getElementById('drawer-logout');
       if(logoutBtn) logoutBtn.addEventListener('click', function(){ logout(); });
     }
@@ -5323,8 +5513,9 @@
       });
     });
 
-    // 글을 펼쳐 본 순간 조회로 기록합니다 (사람당 한 번)
+    // 글을 펼쳐 본 순간 조회로 기록합니다 (조회수는 사람당 한 번만 세어져요)
     if(state.postId) recordView(postById(state.postId));
+    else clearOpenedPost();
 
     bindComments();
     bindPostEditModal();
@@ -5579,6 +5770,13 @@
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('./sw.js').catch(function(){});
+    });
+    // 알림을 누르면 그 글로 바로 데려다줍니다
+    navigator.serviceWorker.addEventListener('message', function(e){
+      var d = e.data || {};
+      if(d.type === 'open-post' && d.postId && window.__mariOpenPost){
+        try{ window.__mariOpenPost(d.postId); }catch(err){}
+      }
     });
   }
 </script>
