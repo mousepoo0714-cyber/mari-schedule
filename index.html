@@ -252,6 +252,27 @@
   .drawer-item.danger{ color:var(--danger); }
   .drawer-sep{ height:1px; background:var(--line); margin:8px 4px; }
   .drawer-note{ padding:11px 14px; font-size:.86rem; color:var(--ink-faint); font-weight:600; }
+  /* ---- 오늘 일정 한 줄 ---- */
+  .today-brief{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    width:100%; margin:0 0 14px; padding:11px 14px; text-align:left;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    font-family:inherit; color:var(--ink); cursor:pointer;
+  }
+  .tb-head{
+    flex:none; font-size:.72rem; font-weight:800; letter-spacing:.04em;
+    color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:999px;
+  }
+  .tb-count{ flex:none; font-size:.82rem; font-weight:700; color:var(--ink-soft); }
+  .tb-count b{ color:var(--ink); }
+  .tb-empty{ font-size:.82rem; color:var(--ink-faint); font-weight:600; }
+  .tb-list{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+  .tb-item{ font-size:.8rem; font-weight:600; color:var(--ink-soft); white-space:nowrap; }
+  .tb-item em{
+    font-style:normal; margin-left:4px; font-size:.68rem; font-weight:800; color:var(--tag-1);
+  }
+  .tb-item.off{ text-decoration:line-through; color:var(--ink-faint); }
+  .tb-more{ font-size:.76rem; color:var(--ink-faint); font-weight:600; }
   /* ---- 안 읽은 글 표시 ---- */
   .new-badge{
     display:inline-flex; align-items:center; justify-content:center;
@@ -2357,6 +2378,7 @@
     renderInner();
     applyFormState(snap);
     syncHistory();
+    if(state.account) startReminders();
   }
   function renderInner(){
     if(state.dbReady === null){ root.innerHTML = tplLoading(); bindLoading(); return; }
@@ -2797,6 +2819,7 @@
       html += '<div class="note-msg" style="border-color:var(--danger);color:var(--danger);">일정을 불러오지 못했어요 ('+esc(state.entriesError)+'). 새로고침해도 같으면 알려주세요 — 저장된 일정은 사라지지 않았어요.</div>';
     }
     html += tplSummary();
+    html += tplTodayBrief();
     html += tplCalendar(y,m);
     html += tplRecentPosts();
 
@@ -2880,6 +2903,34 @@
     html += '<span class="summary-item"><b>'+todays+'</b> 오늘</span>';
     html += '<span class="summary-item"><b>'+upcoming+'</b> 예정</span>';
     html += '</div>';
+    return html;
+  }
+
+  /* 앱을 열면 바로 보이는 오늘 일정 한 줄.
+     달력을 다른 달로 넘겨도 "오늘"은 늘 오늘이라 그대로 둡니다. */
+  function tplTodayBrief(){
+    var t = todayStr();
+    var list = visibleEntries().filter(function(e){ return e.date === t; })
+      .sort(function(a,b){ return String(a.start||'').localeCompare(String(b.start||'')); });
+    var live = list.filter(function(e){ return !isCancelled(e); });
+
+    var html = '<button class="today-brief" id="today-brief" data-day="'+esc(t)+'">';
+    html += '<span class="tb-head">오늘</span>';
+    if(!list.length){
+      html += '<span class="tb-empty">등록된 상담이 없어요.</span>';
+      html += '</button>';
+      return html;
+    }
+    html += '<span class="tb-count">상담 <b>'+live.length+'</b>건</span>';
+    html += '<span class="tb-list">';
+    list.slice(0, 4).forEach(function(e){
+      var who = e.title || '상담';
+      html += '<span class="tb-item'+(isCancelled(e)?' off':'')+'">' +
+        esc((e.start||'').slice(0,5)) + ' ' + esc(who) +
+        (kindOf(e) ? '<em>'+kindLabel(e)+'</em>' : '') + '</span>';
+    });
+    if(list.length > 4) html += '<span class="tb-more">외 '+(list.length-4)+'건</span>';
+    html += '</span></button>';
     return html;
   }
 
@@ -4067,6 +4118,65 @@
       fireNotify(title, body, postId);
     }
   }
+  /* ---------------- 상담 알림 ----------------
+     앱이 떠 있는 동안 시계를 보다가, 내 상담 REMIND_MIN 분 전에 알려줍니다.
+     앱을 완전히 닫으면 멈춰요 (서버 없이 할 수 있는 한계입니다).
+     한 번 울린 일정은 다시 울리지 않게 기기에 적어둡니다 — 새로고침해도 유지돼요. */
+  var REMIND_MIN = 10;
+  var REMIND_KEY = 'mari-reminded-v1';
+  var remindTimer = null;
+
+  function remindedSet(){
+    try{
+      var raw = localStorage.getItem(REMIND_KEY);
+      var obj = raw ? JSON.parse(raw) : null;
+      // 어제 것까지 들고 있을 이유가 없어서 날짜가 바뀌면 비웁니다
+      if(!obj || obj.day !== todayStr()) return { day: todayStr(), ids: {} };
+      return obj;
+    }catch(e){ return { day: todayStr(), ids: {} }; }
+  }
+  function markReminded(obj, id){
+    obj.ids[id] = true;
+    try{ localStorage.setItem(REMIND_KEY, JSON.stringify(obj)); }catch(e){}
+  }
+  // 내가 맡은, 오늘 남은, 취소되지 않은 일정
+  function myTodayEntries(){
+    var me = (state.account||{}).id;
+    var t = todayStr();
+    if(!me) return [];
+    return state.entries.filter(function(e){
+      return e.date === t && e.counselorId === me && !isCancelled(e) && e.start;
+    });
+  }
+  function checkReminders(){
+    // 알림을 허용하지 않은 분께도 앱을 보고 있을 때는 안내가 뜨도록,
+    // 허용 여부는 announce 안에서만 따집니다.
+    if(!state.account) return;
+    var now = new Date();
+    var obj = remindedSet();
+    myTodayEntries().forEach(function(e){
+      if(obj.ids[e.id]) return;
+      var hm = String(e.start).split(':');
+      var at = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+                        parseInt(hm[0],10) || 0, parseInt(hm[1],10) || 0, 0, 0);
+      var left = at.getTime() - now.getTime();
+      // 시작 전 REMIND_MIN 분 안쪽일 때 한 번. 이미 지난 일정은 건드리지 않아요.
+      if(left > REMIND_MIN * 60000 || left <= 0) return;
+      markReminded(obj, e.id);
+      var mins = Math.max(1, Math.round(left / 60000));
+      var kind = kindLabel(e);
+      announce(mins + '분 뒤 ' + (kind || '상담'),
+               String(e.start).slice(0,5) + ' ' + (e.title || '상담'), '');
+    });
+  }
+  function startReminders(){
+    if(remindTimer) return;
+    // 30초마다 봅니다. 화면이 꺼지면 브라우저가 1분에 한 번 정도로 늦추는데,
+    // 10분 전 알림에는 전혀 지장이 없어요.
+    remindTimer = setInterval(checkReminders, 30000);
+    checkReminders();
+  }
+
   function openPostById(id){
     var p = postById(id);
     if(!p) return;
@@ -5769,10 +5879,10 @@
 <script>
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js').catch(function(){});
+      if(navigator.serviceWorker) navigator.serviceWorker.register('./sw.js').catch(function(){});
     });
     // 알림을 누르면 그 글로 바로 데려다줍니다
-    navigator.serviceWorker.addEventListener('message', function(e){
+    if(navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', function(e){
       var d = e.data || {};
       if(d.type === 'open-post' && d.postId && window.__mariOpenPost){
         try{ window.__mariOpenPost(d.postId); }catch(err){}
