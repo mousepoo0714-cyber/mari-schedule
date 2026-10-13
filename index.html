@@ -4091,13 +4091,19 @@
       }).catch(function(){});
     }catch(e){}
   }
-  function fireNotify(title, body, postId){
+  function fireNotify(title, body, postId, strong){
     if(notifyState() !== 'granted') return;
     var opts = {
       body: body,
       icon: appIconUrl(),
       badge: appIconUrl(),
       tag: 'mari-' + postId,                    // 같은 글이면 알림이 겹치지 않게
+      renotify: true,
+      silent: false,
+      // 상담 알림은 조금 더 길게 울리고, 누르거나 치울 때까지 남겨둡니다.
+      // (화면을 켜는 것까지는 웹에서 정할 수 없어요 — 폰 설정이 정합니다)
+      vibrate: strong ? [250, 120, 250, 120, 400] : [200, 100, 200],
+      requireInteraction: !!strong,
       data: { postId: postId, url: './' }
     };
     if(navigator.serviceWorker && navigator.serviceWorker.getRegistration){
@@ -4112,11 +4118,11 @@
     try{ new Notification(title, opts); }catch(e){}
   }
   // 앱을 보고 있으면 앱 안 안내로, 다른 걸 보고 있으면 기기 알림으로.
-  function announce(title, body, postId){
+  function announce(title, body, postId, strong){
     if(typeof document !== 'undefined' && document.visibilityState === 'visible'){
       showToast(title + ' — ' + body);
     } else {
-      fireNotify(title, body, postId);
+      fireNotify(title, body, postId, strong);
     }
   }
   /* ---------------- 상담 알림 ----------------
@@ -4167,7 +4173,7 @@
       var mins = Math.max(1, Math.round(left / 60000));
       var kind = kindLabel(e);
       announce(mins + '분 뒤 ' + (kind || '상담'),
-               String(e.start).slice(0,5) + ' ' + (e.title || '상담'), '');
+               String(e.start).slice(0,5) + ' ' + (e.title || '상담'), 'remind-' + e.id, true);
     });
   }
   function startReminders(){
